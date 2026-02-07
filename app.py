@@ -10,7 +10,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 # ==========================================
-# 🎨 1. KONFIGURACE A STYLY (Beze změny)
+# 🎨 1. KONFIGURACE (VŠE ZACHOVÁNO)
 # ==========================================
 st.set_page_config(page_title="Cihlářské Sázky", page_icon="🧱", layout="wide")
 
@@ -72,14 +72,13 @@ COLORS = {
     "Tyrkysová": "#20c997", "Azurová": "#0dcaf0"
 }
 
-# --- UPRAVENÉ TITULY (S VYSVĚTLIVKOU PŘÍJMU) ---
 RANKS = [
-    {"name": "Pomocná síla (+50 CC)", "inc": 50, "css": "bg-0"}, 
-    {"name": "Kopáč (+60 CC)", "inc": 60, "css": "bg-1"},
-    {"name": "Zedník (+75 CC)", "inc": 75, "css": "bg-2"}, 
-    {"name": "Zásobovač (+120 CC)", "inc": 120, "css": "bg-3"},
-    {"name": "Stavbyvedoucí (+250 CC)", "inc": 250, "css": "bg-4"}, 
-    {"name": "Cihlobaron (+550 CC)", "inc": 550, "css": "bg-5"}
+    {"name": "Pomocná síla", "inc": 50, "css": "bg-0"}, 
+    {"name": "Kopáč", "inc": 60, "css": "bg-1"},
+    {"name": "Zedník", "inc": 75, "css": "bg-2"}, 
+    {"name": "Zásobovač", "inc": 120, "css": "bg-3"},
+    {"name": "Stavbyvedoucí", "inc": 250, "css": "bg-4"}, 
+    {"name": "Cihlobaron", "inc": 550, "css": "bg-5"}
 ]
 
 DEFAULT_SHOP = [
@@ -93,10 +92,9 @@ DEFAULT_SHOP = [
 ]
 
 # ==========================================
-# ☁️ 2. GOOGLE CLOUD NAPOJENÍ (To, co ti chybělo)
+# 💾 2. DATA A LOGIKA (Google Sheets - NUTNÉ PRO ONLINE)
 # ==========================================
 def get_sheet():
-    # Tady jsou ta práva, co jsme opravili v Detektivovi 3.0
     scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
     creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
     client = gspread.authorize(creds)
@@ -133,19 +131,22 @@ def load_data():
                         d["market"]["colors"] = {k: 2.0 for k in COLORS}
                         if "original_odds" in d["market"]: del d["market"]["original_odds"]
                         break
-
+        
         # Migrace statistik
         for u in d["users"].values():
             if "streak" not in u: u["streak"] = 0
             if "stats" not in u: 
-                u["stats"] = {"total_bets":0,"total_wins":0,"total_losses":0,"max_win":0,"total_income_all":0,"total_bet_winnings":0,"total_spent":0,"color_counts":{}, "max_streak": 0}
+                u["stats"] = {
+                    "total_bets": 0, "total_wins": 0, "total_losses": 0,
+                    "max_win": 0, "total_income_all": 0, "total_bet_winnings": 0,
+                    "total_spent": 0, "color_counts": {}, "max_streak": 0
+                }
             if "total_income_all" not in u["stats"]: u["stats"]["total_income_all"] = u["stats"].get("total_earned", 0)
             if "total_bet_winnings" not in u["stats"]: u["stats"]["total_bet_winnings"] = 0
             if "max_streak" not in u["stats"]: u["stats"]["max_streak"] = u["streak"]
             
         return d
     except Exception as e:
-        # Pokud se něco pokazí při načítání, vrátíme prázdnou základnu, aby to nespadlo
         return base
 
 def save_data(data):
@@ -155,9 +156,6 @@ def save_data(data):
     except Exception as e:
         st.error(f"Chyba ukládání: {e}")
 
-# ==========================================
-# 💾 LOGIKA (Zbytek je 1:1 tvůj kód)
-# ==========================================
 def get_time(): return datetime.now().strftime("%H:%M")
 
 def log_item_usage(user_dict, item_name, detail):
@@ -293,8 +291,6 @@ else:
     st.sidebar.divider()
     streak_display = f"🔥 {user['streak']}" if user['streak'] > 0 else ""
     st.sidebar.write(f"👷 **{me}** {streak_display}")
-    
-    # Zde se zobrazí název ranku, který už teď obsahuje i příjem (např. "Kopáč (+60 CC)")
     st.sidebar.info(f"{RANKS[rid]['name']}")
     
     st.sidebar.metric("Zůstatek", f"{int(user['bal'])} CC")
@@ -310,8 +306,9 @@ else:
 
         if data["market"]["status"] == "OPEN":
             if not user["pay"]:
-                if st.button("💸 Vybrat výplatu"):
-                    inc = RANKS[rid]["inc"]
+                # --- ZMĚNA 1: VÝPLATA S ČÁSTKOU ---
+                inc = RANKS[rid]["inc"]
+                if st.button(f"💸 Vybrat výplatu (+{inc} CC)"):
                     user["bal"] += inc; user["pay"] = True
                     user["trans"].append({"type": "in", "amt": inc, "src": "Výplata", "tm": get_time()})
                     update_user_stats(user, 0, 0, 0, "", 0, inc)
@@ -514,7 +511,10 @@ else:
             if user["rank"] < 5:
                 nr = RANKS[user["rank"]+1]
                 p = [500, 2000, 5000, 15000, 50000][user["rank"]]
-                st.info(f"Další: **{nr['name']}** ({p} CC)")
+                
+                # --- ZMĚNA 2: VYSVĚTLENÍ HODNOSTI ---
+                st.info(f"Další: **{nr['name']}** (Cena: {p} CC)\n\n💰 **Zvyšuje denní příjem na {nr['inc']} CC**")
+                
                 if st.button("Koupit hodnost"):
                     if user["bal"] >= p:
                         user["bal"] -= p; user["rank"] += 1; update_user_stats(user,0,0,0,"",p); save_data(data); st.balloons(); st.rerun()
@@ -603,8 +603,6 @@ else:
             for m in data["chat"][-50:]:
                 u_role = m.get('r', 'Dělník'); role_class = "bg-0"
                 for r in RANKS: 
-                    # Zde porovnáváme s názvem, který už obsahuje text o příjmu, takže musíme být opatrní.
-                    # Protože jsme upravili názvy v seznamu RANKS, musíme hledat shodu.
                     if r["name"] == u_role: role_class = r["css"]
                 if u_role == "ADMIN": role_class = "bg-admin"
                 
