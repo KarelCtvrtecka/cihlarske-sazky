@@ -65,6 +65,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# --- OPRAVENÉ BARVY (Zajištěno # na začátku každé barvy) ---
 COLORS = {
     "Červená": "#dc3545", "Modrá": "#0d6efd", "Žlutá": "#ffc107", "Zelená": "#198754",
     "Oranžová": "#fd7e14", "Fialová": "#6f42c1", "Bílá": "#ffffff", "Černá": "#212529",
@@ -92,7 +93,7 @@ DEFAULT_SHOP = [
 ]
 
 # ==========================================
-# 💾 2. DATA A LOGIKA (Google Sheets - NUTNÉ PRO ONLINE)
+# ☁️ 2. GOOGLE CLOUD NAPOJENÍ
 # ==========================================
 def get_sheet():
     scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
@@ -118,7 +119,7 @@ def load_data():
         if not raw or raw == "{}": return base
         d = json.loads(raw)
         
-        # --- SAFEGUARDY ZE TVÉHO KÓDU ---
+        # --- SAFEGUARDY ---
         if "shop" not in d: d["shop"] = DEFAULT_SHOP
         if "market" in d and "colors" in d["market"]:
             for c in COLORS:
@@ -156,6 +157,9 @@ def save_data(data):
     except Exception as e:
         st.error(f"Chyba ukládání: {e}")
 
+# ==========================================
+# 💾 LOGIKA
+# ==========================================
 def get_time(): return datetime.now().strftime("%H:%M")
 
 def log_item_usage(user_dict, item_name, detail):
@@ -291,6 +295,7 @@ else:
     st.sidebar.divider()
     streak_display = f"🔥 {user['streak']}" if user['streak'] > 0 else ""
     st.sidebar.write(f"👷 **{me}** {streak_display}")
+    
     st.sidebar.info(f"{RANKS[rid]['name']}")
     
     st.sidebar.metric("Zůstatek", f"{int(user['bal'])} CC")
@@ -306,7 +311,6 @@ else:
 
         if data["market"]["status"] == "OPEN":
             if not user["pay"]:
-                # --- ZMĚNA 1: VÝPLATA S ČÁSTKOU ---
                 inc = RANKS[rid]["inc"]
                 if st.button(f"💸 Vybrat výplatu (+{inc} CC)"):
                     user["bal"] += inc; user["pay"] = True
@@ -324,7 +328,8 @@ else:
                 idx = 0
                 for c_name, odd in data["market"]["colors"].items():
                     with cols[idx % 4]:
-                        hex_c = COLORS.get(c_name, "#ccc")
+                        # Zde proběhla oprava - strip() odstraní případné mezery a default barva pro jistotu
+                        hex_c = COLORS.get(c_name.strip(), "#ccc")
                         
                         card_style = ""
                         extra_info = ""
@@ -340,7 +345,8 @@ else:
                                 diff_evt = round(odd - orig, 1)
                                 extra_info = f"<br><span style='color:#ffd700;font-weight:bold;font-size:0.9em'>⚡ MEGA +{diff_evt}</span>"
 
-                        st.markdown(f"<div class='bet-card' style='{card_style}'><div style='height:25px;width:25px;border-radius:50%;background:{hex_c};display:inline-block;border:1px solid #999'></div><br><b>{c_name}</b><br><span style='color:#f60;font-weight:bold'>{odd}x</span>{extra_info}</div>", unsafe_allow_html=True)
+                        # Oprava HTML: background-color místo background
+                        st.markdown(f"<div class='bet-card' style='{card_style}'><div style='height:25px;width:25px;border-radius:50%;background-color:{hex_c};display:inline-block;border:1px solid #999'></div><br><b>{c_name}</b><br><span style='color:#f60;font-weight:bold'>{odd}x</span>{extra_info}</div>", unsafe_allow_html=True)
                         if st.button("Vsadit", key=f"b_{c_name}"):
                             st.session_state["target"] = (c_name, odd)
                     idx += 1
@@ -512,7 +518,6 @@ else:
                 nr = RANKS[user["rank"]+1]
                 p = [500, 2000, 5000, 15000, 50000][user["rank"]]
                 
-                # --- ZMĚNA 2: VYSVĚTLENÍ HODNOSTI ---
                 st.info(f"Další: **{nr['name']}** (Cena: {p} CC)\n\n💰 **Zvyšuje denní příjem na {nr['inc']} CC**")
                 
                 if st.button("Koupit hodnost"):
