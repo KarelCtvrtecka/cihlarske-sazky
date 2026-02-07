@@ -25,9 +25,9 @@ st.markdown("""
     
     /* Karty */
     .bet-card { 
-        background: white; border-radius: 12px; padding: 10px; text-align: center; 
+        background: white; border-radius: 12px; padding: 15px; text-align: center; 
         border: 2px solid #eee; box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
-        position: relative; height: 150px; 
+        position: relative; height: 180px; 
         display: flex; flex-direction: column; justify-content: center; align-items: center;
     }
     
@@ -65,7 +65,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- OPRAVENÉ BARVY (Zajištěno # na začátku každé barvy) ---
+# Pevná definice barev - toto zajistí, že se vždy vykreslí
 COLORS = {
     "Červená": "#dc3545", "Modrá": "#0d6efd", "Žlutá": "#ffc107", "Zelená": "#198754",
     "Oranžová": "#fd7e14", "Fialová": "#6f42c1", "Bílá": "#ffffff", "Černá": "#212529",
@@ -93,12 +93,17 @@ DEFAULT_SHOP = [
 ]
 
 # ==========================================
-# ☁️ 2. GOOGLE CLOUD NAPOJENÍ
+# ☁️ 2. GOOGLE CLOUD NAPOJENÍ (RYCHLEJŠÍ KLIKÁNÍ ⚡)
 # ==========================================
-def get_sheet():
+@st.cache_resource
+def init_connection():
+    # Tato funkce se provede jen jednou a pak drží spojení otevřené
     scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
     creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
-    client = gspread.authorize(creds)
+    return gspread.authorize(creds)
+
+def get_sheet():
+    client = init_connection()
     return client.open("CihlyData").sheet1
 
 def load_data():
@@ -119,13 +124,13 @@ def load_data():
         if not raw or raw == "{}": return base
         d = json.loads(raw)
         
-        # --- SAFEGUARDY ---
         if "shop" not in d: d["shop"] = DEFAULT_SHOP
+        
+        # Zajistíme, že data obsahují všechny naše barvy
         if "market" in d and "colors" in d["market"]:
             for c in COLORS:
                 if c not in d["market"]["colors"]: d["market"]["colors"][c] = 2.0
         
-        # Pojistka proti nesmyslným kurzům
         if d["market"].get("status") == "CLOSED":
             for c in d["market"]["colors"]:
                 if d["market"]["colors"][c] > 9.0: 
@@ -133,7 +138,6 @@ def load_data():
                         if "original_odds" in d["market"]: del d["market"]["original_odds"]
                         break
         
-        # Migrace statistik
         for u in d["users"].values():
             if "streak" not in u: u["streak"] = 0
             if "stats" not in u: 
@@ -326,13 +330,19 @@ else:
 
                 cols = st.columns(4)
                 idx = 0
-                for c_name, odd in data["market"]["colors"].items():
+                
+                # ZDE JE TA HLAVNÍ OPRAVA VIZUÁLU:
+                # Místo abychom procházeli data z databáze (kde můžou chybět barvy),
+                # procházíme náš pevný seznam COLORS. Tím zajistíme, že každá karta má správný klíč a barvu.
+                for c_name, hex_c in COLORS.items():
                     with cols[idx % 4]:
-                        # Zde proběhla oprava - strip() odstraní případné mezery a default barva pro jistotu
-                        hex_c = COLORS.get(c_name.strip(), "#ccc")
+                        # Získáme kurz z dat, pokud tam není, použijeme 2.0
+                        odd = data["market"]["colors"].get(c_name, 2.0)
                         
                         card_style = ""
                         extra_info = ""
+                        
+                        # Porovnání s předchozím kolem
                         prev_odd = data["market"].get("prev_colors", {}).get(c_name, 2.0)
                         diff = round(odd - prev_odd, 1)
                         if diff > 0: extra_info += f"<br><span style='color:#198754;font-weight:bold;font-size:0.8em'>▲ +{diff}</span>"
@@ -345,8 +355,29 @@ else:
                                 diff_evt = round(odd - orig, 1)
                                 extra_info = f"<br><span style='color:#ffd700;font-weight:bold;font-size:0.9em'>⚡ MEGA +{diff_evt}</span>"
 
-                        # Oprava HTML: background-color místo background
-                        st.markdown(f"<div class='bet-card' style='{card_style}'><div style='height:25px;width:25px;border-radius:50%;background-color:{hex_c};display:inline-block;border:1px solid #999'></div><br><b>{c_name}</b><br><span style='color:#f60;font-weight:bold'>{odd}x</span>{extra_info}</div>", unsafe_allow_html=True)
+                        # Vynucené styly pro kolečko, aby bylo vždy vidět
+                        circle_html = f"""
+                        <div style='
+                            width: 30px; 
+                            height: 30px; 
+                            border-radius: 50%; 
+                            background-color: {hex_c} !important; 
+                            display: block; 
+                            margin: 0 auto 10px auto; 
+                            border: 1px solid #ccc;
+                            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                        '></div>
+                        """
+                        
+                        st.markdown(f"""
+                        <div class='bet-card' style='{card_style}'>
+                            {circle_html}
+                            <b>{c_name}</b><br>
+                            <span style='color:#f60;font-weight:bold;font-size:1.2em'>{odd}x</span>
+                            {extra_info}
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
                         if st.button("Vsadit", key=f"b_{c_name}"):
                             st.session_state["target"] = (c_name, odd)
                     idx += 1
