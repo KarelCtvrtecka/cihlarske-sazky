@@ -23,13 +23,7 @@ st.markdown("""
     .stButton>button { background-color: #ff6600; color: white; border: none; font-weight: bold; width: 100%; transition: 0.3s; }
     .stButton>button:hover { background-color: #cc5200; transform: scale(1.02); }
     
-    /* Karty */
-    .bet-card { 
-        background: white; border-radius: 12px; padding: 15px; text-align: center; 
-        border: 2px solid #eee; box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
-        position: relative; height: 180px; 
-        display: flex; flex-direction: column; justify-content: center; align-items: center;
-    }
+    /* Karty - styl se aplikuje přímo v HTML níže pro jistotu */
     
     /* Statistiky */
     .stat-box { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 10px; border-left: 5px solid #ccc; }
@@ -65,7 +59,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Pevná definice barev - toto zajistí, že se vždy vykreslí
+# Pevná definice barev
 COLORS = {
     "Červená": "#dc3545", "Modrá": "#0d6efd", "Žlutá": "#ffc107", "Zelená": "#198754",
     "Oranžová": "#fd7e14", "Fialová": "#6f42c1", "Bílá": "#ffffff", "Černá": "#212529",
@@ -93,11 +87,10 @@ DEFAULT_SHOP = [
 ]
 
 # ==========================================
-# ☁️ 2. GOOGLE CLOUD NAPOJENÍ (RYCHLEJŠÍ KLIKÁNÍ ⚡)
+# ☁️ 2. GOOGLE CLOUD NAPOJENÍ (RYCHLEJŠÍ - CACHED)
 # ==========================================
 @st.cache_resource
 def init_connection():
-    # Tato funkce se provede jen jednou a pak drží spojení otevřené
     scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
     creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
     return gspread.authorize(creds)
@@ -125,8 +118,6 @@ def load_data():
         d = json.loads(raw)
         
         if "shop" not in d: d["shop"] = DEFAULT_SHOP
-        
-        # Zajistíme, že data obsahují všechny naše barvy
         if "market" in d and "colors" in d["market"]:
             for c in COLORS:
                 if c not in d["market"]["colors"]: d["market"]["colors"][c] = 2.0
@@ -299,7 +290,6 @@ else:
     st.sidebar.divider()
     streak_display = f"🔥 {user['streak']}" if user['streak'] > 0 else ""
     st.sidebar.write(f"👷 **{me}** {streak_display}")
-    
     st.sidebar.info(f"{RANKS[rid]['name']}")
     
     st.sidebar.metric("Zůstatek", f"{int(user['bal'])} CC")
@@ -331,52 +321,41 @@ else:
                 cols = st.columns(4)
                 idx = 0
                 
-                # ZDE JE TA HLAVNÍ OPRAVA VIZUÁLU:
-                # Místo abychom procházeli data z databáze (kde můžou chybět barvy),
-                # procházíme náš pevný seznam COLORS. Tím zajistíme, že každá karta má správný klíč a barvu.
+                # ZDE JE OPRAVA PROBLÉMU S ROZSYPANÝM HTML
                 for c_name, hex_c in COLORS.items():
                     with cols[idx % 4]:
-                        # Získáme kurz z dat, pokud tam není, použijeme 2.0
                         odd = data["market"]["colors"].get(c_name, 2.0)
                         
-                        card_style = ""
-                        extra_info = ""
+                        # Styl karty
+                        border_style = "2px solid #eee"
+                        box_shadow = "0 4px 6px rgba(0,0,0,0.05)"
+                        extra_info_html = ""
                         
                         # Porovnání s předchozím kolem
                         prev_odd = data["market"].get("prev_colors", {}).get(c_name, 2.0)
                         diff = round(odd - prev_odd, 1)
-                        if diff > 0: extra_info += f"<br><span style='color:#198754;font-weight:bold;font-size:0.8em'>▲ +{diff}</span>"
-                        elif diff < 0: extra_info += f"<br><span style='color:#dc3545;font-weight:bold;font-size:0.8em'>▼ {diff}</span>"
+                        if diff > 0: extra_info_html = f"<div style='color:#198754;font-weight:bold;font-size:0.8em;margin-top:2px'>▲ +{diff}</div>"
+                        elif diff < 0: extra_info_html = f"<div style='color:#dc3545;font-weight:bold;font-size:0.8em;margin-top:2px'>▼ {diff}</div>"
                         
                         if "original_odds" in data["market"] and c_name in data["market"]["original_odds"]:
                             orig = data["market"]["original_odds"][c_name]
                             if odd > orig:
-                                card_style = "border: 2px solid #ffd700; box-shadow: 0 0 15px #ffd700;"
+                                border_style = "2px solid #ffd700"
+                                box_shadow = "0 0 15px #ffd700"
                                 diff_evt = round(odd - orig, 1)
-                                extra_info = f"<br><span style='color:#ffd700;font-weight:bold;font-size:0.9em'>⚡ MEGA +{diff_evt}</span>"
+                                extra_info_html = f"<div style='color:#ffd700;font-weight:bold;font-size:0.9em;margin-top:2px'>⚡ MEGA +{diff_evt}</div>"
 
-                        # Vynucené styly pro kolečko, aby bylo vždy vidět
-                        circle_html = f"""
-                        <div style='
-                            width: 30px; 
-                            height: 30px; 
-                            border-radius: 50%; 
-                            background-color: {hex_c} !important; 
-                            display: block; 
-                            margin: 0 auto 10px auto; 
-                            border: 1px solid #ccc;
-                            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                        '></div>
+                        # TOTO JE OPRAVENÉ HTML, KTERÉ SE UŽ NEROZSYPE
+                        card_html = f"""
+                        <div style='background: white; border-radius: 12px; padding: 10px; text-align: center; border: {border_style}; box-shadow: {box_shadow}; height: 160px; display: flex; flex-direction: column; justify-content: center; align-items: center;'>
+                            <div style='width: 30px; height: 30px; border-radius: 50%; background-color: {hex_c}; display: block; margin: 0 auto 5px auto; border: 1px solid #ccc; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'></div>
+                            <div style='font-weight:bold; margin-bottom:5px; color:#333;'>{c_name}</div>
+                            <div style='color:#ff6600; font-weight:bold; font-size:1.4em;'>{odd}x</div>
+                            {extra_info_html}
+                        </div>
                         """
                         
-                        st.markdown(f"""
-                        <div class='bet-card' style='{card_style}'>
-                            {circle_html}
-                            <b>{c_name}</b><br>
-                            <span style='color:#f60;font-weight:bold;font-size:1.2em'>{odd}x</span>
-                            {extra_info}
-                        </div>
-                        """, unsafe_allow_html=True)
+                        st.markdown(card_html, unsafe_allow_html=True)
                         
                         if st.button("Vsadit", key=f"b_{c_name}"):
                             st.session_state["target"] = (c_name, odd)
