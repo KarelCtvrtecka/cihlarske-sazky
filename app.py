@@ -357,7 +357,100 @@ else:
         with st.form("cf"): 
             if st.form_submit_button("Odeslat") and (t:=st.text_input("Zpráva")): data["chat"].append({"u":me, "t":t, "tm":get_time(), "r": "ADMIN" if st.session_state.get("admin_ok") else RANKS[rid]['name']}); save_data(data); st.rerun()
 
-    elif page == "📚 NÁPOVĚDA": st.title("📚 Manuál"); st.write("Kompletní manuál viz předchozí verze.")
+    # --- NÁPOVĚDA (KOMPLETNÍ) ---
+    elif page == "📚 NÁPOVĚDA":
+        st.title("📚 Herní Manuál")
+        
+        with st.expander("❓ ZÁKLADNÍ PRINCIP", expanded=True):
+            st.write("""
+            **Cíl hry:** Získat co nejvíce Cihlakoinů (CC) a stát se Cihlobaronem.
+            1.  **Výplata:** Každý herní den si vyzvedni mzdu v sekci DOMŮ.
+            2.  **Sázky:** Vsaď na barvu. Pokud vyhraje, získáš násobek vkladu.
+            3.  **Streak:** Pokud vyhraješ všechny své sázky v kole, roste ti 🔥 Streak. Jediná chyba a padáš na nulu.
+            """)
+        
+        st.write("---")
+        st.subheader("🎒 KATALOG PŘEDMĚTŮ")
+        
+        st.markdown("""
+        ### 🔵 Aktivní předměty (Použij v Batohu)
+        *Předměty typu 'Use' musíš ručně aktivovat v Batohu před tím, než jdou do akce.*
+
+        **🧃 Svačina (Cena: 50 CC)**
+        * **Co dělá:** Okamžitě ti přidá 50 CC do peněženky.
+        * **Kdy koupit:** Když jsi úplně na dně a nemáš ani na vklad. Je to záchranná brzda.
+
+        **🧱 Zlatá Cihla (Cena: 1000 CC)**
+        * **Co dělá:** Zdvojnásobí tvou výhru.
+        * **Jak použít:** Kup ji -> Jdi do Batohu -> Klikni "Použít" (aktivuje se bonus) -> Jdi vsadit.
+        * **Riziko:** Pokud sázku prohraješ, o cihlu přijdeš a nedostaneš nic. Pokud vyhraješ, získáš balík.
+
+        **👷 BOZP Helma (Cena: 300 CC)**
+        * **Co dělá:** Funguje jako pojištění sázky.
+        * **Jak použít:** Kup ji -> Jdi do Batohu -> Klikni "Použít" -> Jdi vsadit.
+        * **Efekt:** Pokud tvá sázka **prohraje**, vrátí se ti **50 % vkladu**. Pokud vyhraješ, helma se spotřebuje bez efektu.
+
+        ---
+        ### 🟡 Pasivní předměty (Fungují automaticky)
+        *Stačí je mít v batohu.*
+
+        **🛡️ Titanová Přilba (Cena: 3000 CC)**
+        * **Co dělá:** Chrání tě před útoky ostatních hráčů.
+        * **Efekt:** Když na tebe někdo použije *Podkopnutí* nebo *Fantoma*, máš **80% šanci**, že útok odrazíš a nic se ti nestane.
+        * **Pozor:** Pokud helma úspěšně odrazí útok, **zničí se** (zmizí z batohu). Musíš koupit novou. Můžeš mít u sebe jen jednu.
+
+        ---
+        ### 🔴 Útočné předměty (Použij v Žebříčku)
+        *Slouží k sabotáži soupeřů.*
+
+        **🦶 Podkopnutí (Cena: 8000 CC)**
+        * **Co dělá:** Zraní vybraného hráče.
+        * **Jak použít:** Jdi do Žebříčku -> Najdi oběť -> Klikni na tlačítko 👊.
+        * **Efekt:** Pokud oběť nemá Titanovou helmu (nebo selže její obrana), hráč je **ZRANĚN**. Zraněný hráč nemůže sázet, dokud ho Admin nevyléčí nebo nezačne nový den.
+        * **Info:** V chatu všichni uvidí, že jsi útočil ty.
+
+        **👻 Fantom (Cena: 20000 CC)**
+        * **Co dělá:** To samé co Podkopnutí, ale **anonymně**.
+        * **Efekt:** V chatu se napíše "Někdo zaútočil...", ale tvé jméno zůstane skryté. Ideální pro tichou pomstu.
+
+        ---
+        ### 🟣 Vylepšení
+        **🪣 Větší Kbelík (Cena: roste)**
+        * **Co dělá:** Trvale zvětší kapacitu batohu o +2 místa.
+        * **Cena:** S každým nákupem je dražší.
+        """)
+
+        st.write("---")
+        st.subheader("⚡ EVENTY (UDÁLOSTI)")
+        st.write("Každý den při otevření trhu může náhodně nastat jedna z těchto situací:")
+        
+        st.info("""
+        **🏷️ CENOVÝ ŠOK**
+        Ceny v obchodě se zblázní! Některé předměty (kromě Svačiny a Kbelíku) mohou zlevnit až o 95 %, jiné zase brutálně zdražit. Sleduj obchod každé ráno!
+        """)
+        
+        st.success("""
+        **🎁 NÁLEZ MĚDI**
+        Šťastný den na stavbě! Všichni hráči automaticky dostanou bonus **150 CC**.
+        """)
+        
+        st.error("""
+        **🔥 PÁD LEŠENÍ**
+        Smůla. Všem hráčům se strhne **10 %** z jejich aktuálního zůstatku.
+        """)
+        
+        st.warning("""
+        **🚀 MEGA BOOST**
+        Tři náhodné barvy dostanou obrovský kurz **5.0x**! Tyto barvy budou na hlavní stránce zářit zlatě. Ideální čas zariskovat.
+        """)
+        
+        st.error("""
+        **👮 PROVĚRKA BOZP**
+        Nejhorší event. Přijde kontrola. U každého hráče je **50% šance**, že dostane pokutu ve formě úrazu.
+        * Pokud máš smůlu, jsi **ZRANĚN** a nemůžeš ten den sázet.
+        * **Helmy proti tomuto eventu nefungují!** Je to úřední moc.
+        """)
+
 
     elif page == "ADMIN":
         st.title("⚙️ Admin"); 
@@ -416,3 +509,4 @@ else:
                 if st.button("Cenový šok"): msg=trigger_shop_fluctuation(data); save_data(data); st.success(msg)
             with t4:
                 if st.button("⚠️ RESET DATABÁZE"): st.error("Smaž A1 v Google Sheets.")
+
