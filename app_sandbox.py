@@ -95,62 +95,90 @@ def init_connection():
     creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
     return gspread.authorize(creds)
 
-def get_sheet():
+def get_sheets():
+    """Vrátí přístup k listům Users a System"""
     client = init_connection()
-    return client.open("CihlyData_SANDBOX").sheet1
-
+    # Tady se připojujeme k SANDBOX tabulce
+    sh = client.open("CihlyData_SANDBOX")
+    return sh.worksheet("Users"), sh.worksheet("System")
+    
 def load_data():
+    """Načte data z řádků a složí je do jednoho objektu"""
     base = {
         "users": {},
-        "market": {
-            "status": "CLOSED", 
-            "colors": {c: 2.0 for c in COLORS},
-            "prev_colors": {c: 2.0 for c in COLORS},
-            "last_round_stats": {}
-        },
+        "market": {"status": "CLOSED", "colors": {}},
         "chat": [],
-        "shop": DEFAULT_SHOP
+        "shop": []
     }
+    
     try:
-        sheet = get_sheet()
-        raw = sheet.acell('A1').value
-        if not raw or raw == "{}": return base
-        d = json.loads(raw)
+        sheet_users, sheet_sys = get_sheets()
         
-        if "shop" not in d: d["shop"] = DEFAULT_SHOP
-        if "market" in d and "colors" in d["market"]:
-            for c in COLORS:
-                if c not in d["market"]["colors"]: d["market"]["colors"][c] = 2.0
+        # 1. Načíst SYSTÉM (Trh, Chat, Shop)
+        sys_vals = sheet_sys.batch_get(['B1', 'B2', 'B3'])
         
-        if d["market"].get("status") == "CLOSED":
-            for c in d["market"]["colors"]:
-                if d["market"]["colors"][c] > 9.0: 
-                        d["market"]["colors"] = {k: 2.0 for k in COLORS}
-                        if "original_odds" in d["market"]: del d["market"]["original_odds"]
-                        break
+        if sys_vals[0] and sys_vals[0][0]: base["market"] = json.loads(sys_vals[0][0][0])
+        if len(sys_vals) > 1 and sys_vals[1] and sys_vals[1][0]: base["chat"] = json.loads(sys_vals[1][0][0])
+        if len(sys_vals) > 2 and sys_vals[2] and sys_vals[2][0]: base["shop"] = json.loads(sys_vals[2][0][0])
+
+        # 2. Načíst UŽIVATELE (řádek po řádku)
+        user_rows = sheet_users.get_all_values()
         
-        for u in d["users"].values():
-            if "streak" not in u: u["streak"] = 0
-            if "stats" not in u: 
-                u["stats"] = {
-                    "total_bets": 0, "total_wins": 0, "total_losses": 0,
-                    "max_win": 0, "total_income_all": 0, "total_bet_winnings": 0,
-                    "total_spent": 0, "color_counts": {}, "max_streak": 0
-                }
-            if "total_income_all" not in u["stats"]: u["stats"]["total_income_all"] = u["stats"].get("total_earned", 0)
-            if "total_bet_winnings" not in u["stats"]: u["stats"]["total_bet_winnings"] = 0
-            if "max_streak" not in u["stats"]: u["stats"]["max_streak"] = u["streak"]
-            
-        return d
-    except Exception as e:
+        # Přeskočíme hlavičku a jedeme...
+        for row in user_rows[1:]:
+            if len(row) >= 2 and row[0]:
+                uname = row[0]
+                try:
+                    udata = json.loads(row[1])
+                    base["users"][uname] = udata
+                except:
+                    continue 
+                
         return base
 
-def save_data(data):
-    try:
-        sheet = get_sheet()
-        sheet.update_acell('A1', json.dumps(data))
     except Exception as e:
-        st.error(f"Chyba ukládání: {e}")
+        st.error(f"⚠️ Chyba db: {e}")
+        return base
+
+def save_data(data, target="all", specific_user=None):
+    """
+    Chytré ukládání:
+    - target="user": Uloží jen jednoho hráče (rychlé)
+    - target="system": Uloží jen trh/chat
+    - target="all": Uloží vše (pomalé, pro admina)
+    """
+    try:
+        sheet_users, sheet_sys = get_sheets()
+        
+        # Uložení SYSTÉMU
+        if target in ["all", "system"]:
+            sheet_sys.batch_update([
+                {'range': 'B1', 'values': [[json.dumps(data["market"])]]},
+                {'range': 'B2', 'values': [[json.dumps(data["chat"])]]},
+                {'range': 'B3', 'values': [[json.dumps(data["shop"])]]}
+            ])
+
+        # Uložení UŽIVATELŮ
+        if target == "all":
+            # Pomalá metoda - přepíše vše (použít jen v nutnosti)
+            rows = [["Username", "Data"]]
+            for uname, udata in data["users"].items():
+                rows.append([uname, json.dumps(udata)])
+            sheet_users.clear()
+            sheet_users.update('A1', rows)
+            
+        elif target == "user" and specific_user:
+            # Rychlá metoda - najde řádek a opraví jen ten
+            user_json = json.dumps(data["users"][specific_user])
+            try:
+                cell = sheet_users.find(specific_user, in_column=1)
+                sheet_users.update_cell(cell.row, 2, user_json)
+            except:
+                # Hráč neexistuje -> přidáme na konec
+                sheet_users.append_row([specific_user, user_json])
+
+    except Exception as e:
+        st.error(f"⚠️ Chyba save: {e}")
 
 # ==========================================
 # 💾 LOGIKA
