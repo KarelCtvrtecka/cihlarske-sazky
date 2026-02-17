@@ -336,7 +336,10 @@ if not st.session_state.user:
 # ==========================================
 else:
     me = st.session_state.user
-    if me not in data["users"]: st.session_state.user = None; st.rerun()
+    if data["users"] and me not in data["users"]:
+    st.session_state.user = None
+    st.rerun()
+    
     user = data["users"][me]
     
     if "streak" not in user: user["streak"] = 0
