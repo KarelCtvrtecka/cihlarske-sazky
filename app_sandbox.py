@@ -337,8 +337,8 @@ if not st.session_state.user:
 else:
     me = st.session_state.user
     if data["users"] and me not in data["users"]:
-    st.session_state.user = None
-    st.rerun()
+        st.session_state.user = None
+        st.rerun()
     
     user = data["users"][me]
     
