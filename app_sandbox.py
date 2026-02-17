@@ -103,10 +103,10 @@ def get_sheets():
     return sh.worksheet("Users"), sh.worksheet("System")
     
 def load_data():
-    """Načte data a opraví chybějící barvy, pokud je databáze prázdná."""
+    """Načte data a opraví chybějící barvy i prázdný obchod."""
     base = {
         "users": {},
-        "market": {"status": "CLOSED", "colors": {}}, # Defaultně prázdné
+        "market": {"status": "CLOSED", "colors": {}}, 
         "chat": [],
         "shop": []
     }
@@ -124,18 +124,20 @@ def load_data():
         if len(sys_vals) > 2 and sys_vals[2] and sys_vals[2][0]: 
             base["shop"] = json.loads(sys_vals[2][0][0])
 
-        # --- POJISTKA PROTI KEYERROR (TOTO PŘIDEJ) ---
-        # Pokud v databázi chybí klíč "colors", vyrobíme ho
+        # --- POJISTKA PRO BARVY (Moudrost davu) ---
         if "colors" not in base["market"]:
             base["market"]["colors"] = {}
-
-        # Projdeme všechny barvy, které máš definované v seznamu COLORS
-        # Pokud v databázi nějaká chybí, nastavíme ji na 2.0
-        # (Předpokládám, že na začátku kódu máš: COLORS = ["Červená", "Modrá"...])
         for c in COLORS:
             if c not in base["market"]["colors"]:
                 base["market"]["colors"][c] = 2.0
-        # ---------------------------------------------
+
+        # --- POJISTKA PRO OBCHOD (Opravená verze) ---
+        # Pokud je obchod prázdný, načteme tam tvůj originální DEFAULT_SHOP
+        if not base["shop"]:
+            # Python si sáhne nahoru do kódu pro tvůj seznam věcí
+            # (Předpokládám, že proměnnou DEFAULT_SHOP máš definovanou na začátku souboru)
+            base["shop"] = DEFAULT_SHOP 
+        # -------------------------------------------------------------
 
         # 2. Načíst UŽIVATELE
         user_rows = sheet_users.get_all_values()
