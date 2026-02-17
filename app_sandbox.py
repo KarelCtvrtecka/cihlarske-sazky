@@ -87,7 +87,15 @@ DEFAULT_SHOP = [
 ]
 
 # ==========================================
-# ☁️ 2. GOOGLE CLOUD NAPOJENÍ (RYCHLEJŠÍ - CACHED)
+# 🧠 1,5. POJISTKA PAMĚTI (SESSION STATE)
+# ==========================================
+if 'user' not in st.session_state:
+    st.session_state['user'] = None
+if 'data' not in st.session_state:
+    st.session_state['data'] = None
+
+# ==========================================
+# ☁️ 2. GOOGLE CLOUD NAPOJENÍ (OPTIMALIZOVANÉ)
 # ==========================================
 @st.cache_resource
 def init_connection():
@@ -98,8 +106,7 @@ def init_connection():
 def get_sheets():
     """Vrátí přístup k listům Users a System"""
     client = init_connection()
-    # Tady se připojujeme k SANDBOX tabulce
-    sh = client.open("CihlyData_SANDBOX")
+    sh = client.open("CihlyData_SANDBOX") # ⚠️ Zkontroluj, zda sedí název tabulky!
     return sh.worksheet("Users"), sh.worksheet("System")
     
 def load_data():
@@ -124,20 +131,16 @@ def load_data():
         if len(sys_vals) > 2 and sys_vals[2] and sys_vals[2][0]: 
             base["shop"] = json.loads(sys_vals[2][0][0])
 
-        # --- POJISTKA PRO BARVY (Moudrost davu) ---
+        # --- POJISTKA PRO BARVY ---
         if "colors" not in base["market"]:
             base["market"]["colors"] = {}
         for c in COLORS:
             if c not in base["market"]["colors"]:
                 base["market"]["colors"][c] = 2.0
 
-        # --- POJISTKA PRO OBCHOD (Opravená verze) ---
-        # Pokud je obchod prázdný, načteme tam tvůj originální DEFAULT_SHOP
+        # --- POJISTKA PRO OBCHOD ---
         if not base["shop"]:
-            # Python si sáhne nahoru do kódu pro tvůj seznam věcí
-            # (Předpokládám, že proměnnou DEFAULT_SHOP máš definovanou na začátku souboru)
             base["shop"] = DEFAULT_SHOP 
-        # -------------------------------------------------------------
 
         # 2. Načíst UŽIVATELE
         user_rows = sheet_users.get_all_values()
@@ -158,10 +161,7 @@ def load_data():
 
 def save_data(data, target="all", specific_user=None):
     """
-    Chytré ukládání:
-    - target="user": Uloží jen jednoho hráče (rychlé) + promaže starou historii
-    - target="system": Uloží jen trh/chat
-    - target="all": Uloží vše (pomalé, pro admina)
+    Chytré ukládání s čističem paměti (Anti-Lag System)
     """
     try:
         sheet_users, sheet_sys = get_sheets()
@@ -194,30 +194,23 @@ def save_data(data, target="all", specific_user=None):
             # Načteme si data toho jednoho uživatele
             user_data = data["users"][specific_user]
 
-            # 👇👇👇 TADY JE TA ZMĚNA (UKLÍZEČKA PAMĚTI) 👇👇👇
-            # ---------------------------------------------------
-            # 1. Omezíme historii SÁZEK (bets) na posledních 50
+            # 👇 OMEZOVAČ HISTORIE (Aby se nezaplnila paměť) 👇
             if "bets" in user_data and len(user_data["bets"]) > 50:
                 user_data["bets"] = user_data["bets"][-50:]
 
-            # 2. Omezíme historii TRANSAKCÍ (trans) na posledních 50
             if "trans" in user_data and len(user_data["trans"]) > 50:
                 user_data["trans"] = user_data["trans"][-50:]
 
-            # 3. Omezíme historii POUŽITÍ ITEMŮ (item_history) na posledních 50
             if "item_history" in user_data and len(user_data["item_history"]) > 50:
                  user_data["item_history"] = user_data["item_history"][-50:]
-            # ---------------------------------------------------
-            # 👆👆👆 KONEC ZMĚNY 👆👆👆
+            # 👆 KONEC OMEZOVAČE 👆
 
-            # Teprve TEĎ to převedeme na text (JSON) a uložíme
             user_json = json.dumps(user_data)
             
             try:
                 cell = sheet_users.find(specific_user, in_column=1)
                 sheet_users.update_cell(cell.row, 2, user_json)
             except:
-                # Hráč neexistuje -> přidáme na konec
                 sheet_users.append_row([specific_user, user_json])
 
     except Exception as e:
