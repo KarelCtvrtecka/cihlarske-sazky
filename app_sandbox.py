@@ -103,10 +103,10 @@ def get_sheets():
     return sh.worksheet("Users"), sh.worksheet("System")
     
 def load_data():
-    """Načte data z řádků a složí je do jednoho objektu"""
+    """Načte data a opraví chybějící barvy, pokud je databáze prázdná."""
     base = {
         "users": {},
-        "market": {"status": "CLOSED", "colors": {}},
+        "market": {"status": "CLOSED", "colors": {}}, # Defaultně prázdné
         "chat": [],
         "shop": []
     }
@@ -114,17 +114,31 @@ def load_data():
     try:
         sheet_users, sheet_sys = get_sheets()
         
-        # 1. Načíst SYSTÉM (Trh, Chat, Shop)
+        # 1. Načíst SYSTÉM
         sys_vals = sheet_sys.batch_get(['B1', 'B2', 'B3'])
         
-        if sys_vals[0] and sys_vals[0][0]: base["market"] = json.loads(sys_vals[0][0][0])
-        if len(sys_vals) > 1 and sys_vals[1] and sys_vals[1][0]: base["chat"] = json.loads(sys_vals[1][0][0])
-        if len(sys_vals) > 2 and sys_vals[2] and sys_vals[2][0]: base["shop"] = json.loads(sys_vals[2][0][0])
+        if sys_vals[0] and sys_vals[0][0]: 
+            base["market"] = json.loads(sys_vals[0][0][0])
+        if len(sys_vals) > 1 and sys_vals[1] and sys_vals[1][0]: 
+            base["chat"] = json.loads(sys_vals[1][0][0])
+        if len(sys_vals) > 2 and sys_vals[2] and sys_vals[2][0]: 
+            base["shop"] = json.loads(sys_vals[2][0][0])
 
-        # 2. Načíst UŽIVATELE (řádek po řádku)
+        # --- POJISTKA PROTI KEYERROR (TOTO PŘIDEJ) ---
+        # Pokud v databázi chybí klíč "colors", vyrobíme ho
+        if "colors" not in base["market"]:
+            base["market"]["colors"] = {}
+
+        # Projdeme všechny barvy, které máš definované v seznamu COLORS
+        # Pokud v databázi nějaká chybí, nastavíme ji na 2.0
+        # (Předpokládám, že na začátku kódu máš: COLORS = ["Červená", "Modrá"...])
+        for c in COLORS:
+            if c not in base["market"]["colors"]:
+                base["market"]["colors"][c] = 2.0
+        # ---------------------------------------------
+
+        # 2. Načíst UŽIVATELE
         user_rows = sheet_users.get_all_values()
-        
-        # Přeskočíme hlavičku a jedeme...
         for row in user_rows[1:]:
             if len(row) >= 2 and row[0]:
                 uname = row[0]
