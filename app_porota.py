@@ -97,7 +97,7 @@ def init_connection():
 
 def get_sheet():
     client = init_connection()
-    return client.open("CihlyData_POROTA").sheet1
+    return client.open("CihlyData_SANDBOX").sheet1
 
 def load_data():
     base = {
