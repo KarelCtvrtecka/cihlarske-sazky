@@ -166,8 +166,15 @@ def save_data(data, target="all", specific_user=None):
     try:
         sheet_users, sheet_sys = get_sheets()
         
-        # Uložení SYSTÉMU
+        # A. Uložení SYSTÉMU (Market, Chat, Shop)
         if target in ["all", "system"]:
+            
+            # --- OMEZOVAČ CHATU (CRITICAL FIX) ---
+            # Udržíme jen posledních 50 zpráv, aby buňka nepřetekla
+            if len(data["chat"]) > 50:
+                data["chat"] = data["chat"][-50:] 
+            # -------------------------------------
+
             sheet_sys.batch_update([
                 {'range': 'B1', 'values': [[json.dumps(data["market"])]]},
                 {'range': 'B2', 'values': [[json.dumps(data["chat"])]]},
