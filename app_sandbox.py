@@ -336,10 +336,18 @@ if not st.session_state.user:
 # ==========================================
 else:
     me = st.session_state.user
+    
+    # 1. POJISTKA PROTI ODHLÁŠENÍ (Už máš správně odsazené)
     if data["users"] and me not in data["users"]:
         st.session_state.user = None
         st.rerun()
-    
+
+    # 2. POJISTKA PROTI KEYERROR (To je to, co ti teď chybí a hází chybu)
+    if me not in data["users"]:
+        st.info("Pobírám data ze stavby... vteřinku.")
+        st.stop()
+        
+    # Teprve tady si kód bezpečně sáhne pro data hráče
     user = data["users"][me]
     
     if "streak" not in user: user["streak"] = 0
