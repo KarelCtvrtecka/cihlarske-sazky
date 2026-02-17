@@ -159,7 +159,7 @@ def load_data():
 def save_data(data, target="all", specific_user=None):
     """
     Chytré ukládání:
-    - target="user": Uloží jen jednoho hráče (rychlé)
+    - target="user": Uloží jen jednoho hráče (rychlé) + promaže starou historii
     - target="system": Uloží jen trh/chat
     - target="all": Uloží vše (pomalé, pro admina)
     """
@@ -169,11 +169,10 @@ def save_data(data, target="all", specific_user=None):
         # A. Uložení SYSTÉMU (Market, Chat, Shop)
         if target in ["all", "system"]:
             
-            # --- OMEZOVAČ CHATU (CRITICAL FIX) ---
-            # Udržíme jen posledních 50 zpráv, aby buňka nepřetekla
+            # --- OMEZOVAČ CHATU ---
             if len(data["chat"]) > 50:
                 data["chat"] = data["chat"][-50:] 
-            # -------------------------------------
+            # ----------------------
 
             sheet_sys.batch_update([
                 {'range': 'B1', 'values': [[json.dumps(data["market"])]]},
@@ -181,18 +180,39 @@ def save_data(data, target="all", specific_user=None):
                 {'range': 'B3', 'values': [[json.dumps(data["shop"])]]}
             ])
 
-        # Uložení UŽIVATELŮ
+        # B. Uložení VŠECH UŽIVATELŮ (Pomalé - Admin)
         if target == "all":
-            # Pomalá metoda - přepíše vše (použít jen v nutnosti)
             rows = [["Username", "Data"]]
             for uname, udata in data["users"].items():
                 rows.append([uname, json.dumps(udata)])
             sheet_users.clear()
             sheet_users.update('A1', rows)
             
+        # C. Uložení KONKRÉTNÍHO UŽIVATELE (Rychlé)
         elif target == "user" and specific_user:
-            # Rychlá metoda - najde řádek a opraví jen ten
-            user_json = json.dumps(data["users"][specific_user])
+            
+            # Načteme si data toho jednoho uživatele
+            user_data = data["users"][specific_user]
+
+            # 👇👇👇 TADY JE TA ZMĚNA (UKLÍZEČKA PAMĚTI) 👇👇👇
+            # ---------------------------------------------------
+            # 1. Omezíme historii SÁZEK (bets) na posledních 50
+            if "bets" in user_data and len(user_data["bets"]) > 50:
+                user_data["bets"] = user_data["bets"][-50:]
+
+            # 2. Omezíme historii TRANSAKCÍ (trans) na posledních 50
+            if "trans" in user_data and len(user_data["trans"]) > 50:
+                user_data["trans"] = user_data["trans"][-50:]
+
+            # 3. Omezíme historii POUŽITÍ ITEMŮ (item_history) na posledních 50
+            if "item_history" in user_data and len(user_data["item_history"]) > 50:
+                 user_data["item_history"] = user_data["item_history"][-50:]
+            # ---------------------------------------------------
+            # 👆👆👆 KONEC ZMĚNY 👆👆👆
+
+            # Teprve TEĎ to převedeme na text (JSON) a uložíme
+            user_json = json.dumps(user_data)
+            
             try:
                 cell = sheet_users.find(specific_user, in_column=1)
                 sheet_users.update_cell(cell.row, 2, user_json)
