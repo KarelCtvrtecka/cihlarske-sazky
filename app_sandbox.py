@@ -109,8 +109,10 @@ def get_sheets():
     sh = client.open("CihlyData_SANDBOX") # ⚠️ Zkontroluj, zda sedí název tabulky!
     return sh.worksheet("Users"), sh.worksheet("System")
     
+@st.cache_data(ttl=2) # Cache nastavena na 2 sekundy pro stabilitu
 def load_data():
     """Načte data a opraví chybějící barvy i prázdný obchod."""
+    time.sleep(1) # <--- BRZDA: Uklidní Google API při refreshi
     base = {
         "users": {},
         "market": {"status": "CLOSED", "colors": {}}, 
@@ -156,7 +158,11 @@ def load_data():
         return base
 
     except Exception as e:
-        st.error(f"⚠️ Chyba db: {e}")
+        # Pokud nastane Quota Error, vypíšeme varování, ale nezboříme aplikaci
+        if "429" in str(e):
+            st.error("🚦 Google má moc práce. Zkus to za minutu.")
+        else:
+            st.error(f"⚠️ Chyba db: {e}")
         return base
 
 def save_data(data, target="all", specific_user=None):
@@ -337,12 +343,17 @@ if not st.session_state.user:
 else:
     me = st.session_state.user
     
+    # --- POJISTKA PROTI PRÁZDNÝM DATŮM (Nové!) ---
+    if not data or "users" not in data:
+        st.warning("Data se ještě nenačetla z Google Sheets...")
+        st.stop()
+    
     # 1. POJISTKA PROTI ODHLÁŠENÍ (Už máš správně odsazené)
     if data["users"] and me not in data["users"]:
         st.session_state.user = None
         st.rerun()
 
-    # 2. POJISTKA PROTI KEYERROR (To je to, co ti teď chybí a hází chybu)
+    # 2. POJISTKA PROTI KEYERROR (Aby to neházelo chybu, když data zrovna "cuknou")
     if me not in data["users"]:
         st.info("Pobírám data ze stavby... vteřinku.")
         st.stop()
@@ -350,17 +361,21 @@ else:
     # Teprve tady si kód bezpečně sáhne pro data hráče
     user = data["users"][me]
     
+    # Doplnění chybějících klíčů (Pojistka pro staré účty)
     if "streak" not in user: user["streak"] = 0
-    if "stats" not in user: user["stats"] = {"total_bets":0,"total_wins":0,"total_losses":0,"max_win":0,"total_income_all":0,"total_bet_winnings":0,"total_spent":0,"color_counts":{}, "max_streak": 0}
+    if "stats" not in user: 
+        user["stats"] = {"total_bets":0,"total_wins":0,"total_losses":0,"max_win":0,"total_income_all":0,"total_bet_winnings":0,"total_spent":0,"color_counts":{}, "max_streak": 0}
 
+    # Sidebar s odhlášením
     if st.sidebar.button("Odhlásit"): 
         st.session_state.user = None
         st.session_state.admin_ok = False
         st.rerun()
     
-    rid = min(user["rank"], len(RANKS)-1)
-    max_slots = 3 + (user["slots"] * 2)
-    current_items = len(user["inv"])
+    # Výpočty pro zobrazení
+    rid = min(user.get("rank", 0), len(RANKS)-1)
+    max_slots = 3 + (user.get("slots", 0) * 2)
+    current_items = len(user.get("inv", []))
     
     st.sidebar.divider()
     streak_display = f"🔥 {user['streak']}" if user['streak'] > 0 else ""
