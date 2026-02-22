@@ -87,15 +87,7 @@ DEFAULT_SHOP = [
 ]
 
 # ==========================================
-# 🧠 1,5. POJISTKA PAMĚTI (SESSION STATE)
-# ==========================================
-if 'user' not in st.session_state:
-    st.session_state['user'] = None
-if 'data' not in st.session_state:
-    st.session_state['data'] = None
-
-# ==========================================
-# ☁️ 2. GOOGLE CLOUD NAPOJENÍ (OPTIMALIZOVANÉ)
+# ☁️ 2. GOOGLE CLOUD NAPOJENÍ (RYCHLEJŠÍ - CACHED)
 # ==========================================
 @st.cache_resource
 def init_connection():
@@ -103,124 +95,68 @@ def init_connection():
     creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
     return gspread.authorize(creds)
 
-def get_sheets():
-    """Vrátí přístup k listům Users a System"""
+def get_sheet():
     client = init_connection()
-    sh = client.open("CihlyData_SANDBOX") # ⚠️ Zkontroluj, zda sedí název tabulky!
-    return sh.worksheet("Users"), sh.worksheet("System")
-    
-@st.cache_data(ttl=2) # Cache nastavena na 2 sekundy pro stabilitu
+    return client.open("CihlyData").sheet1
+
+@st.cache_resource
+def init_connection():
+    scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+    creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
+    return gspread.authorize(creds)
+
 def load_data():
-    """Načte data a opraví chybějící barvy i prázdný obchod."""
-    time.sleep(1) # <--- BRZDA: Uklidní Google API při refreshi
-    base = {
-        "users": {},
-        "market": {"status": "CLOSED", "colors": {}}, 
-        "chat": [],
-        "shop": []
-    }
+    """Načte vše z jednoho listu 'Data' (Uživatelé + Systém)"""
+    # Základní struktura, kdyby byla tabulka prázdná
+    base = {"users": {}, "market": {"status": "CLOSED", "colors": {c: 2.0 for c in COLORS}}, "chat": [], "shop": DEFAULT_SHOP}
     
     try:
-        sheet_users, sheet_sys = get_sheets()
+        client = init_connection()
+        sh = client.open("CihlyData_SANDBOX")
+        sheet = sh.worksheet("Data")
         
-        # 1. Načíst SYSTÉM
-        sys_vals = sheet_sys.batch_get(['B1', 'B2', 'B3'])
-        
-        if sys_vals[0] and sys_vals[0][0]: 
-            base["market"] = json.loads(sys_vals[0][0][0])
-        if len(sys_vals) > 1 and sys_vals[1] and sys_vals[1][0]: 
-            base["chat"] = json.loads(sys_vals[1][0][0])
-        if len(sys_vals) > 2 and sys_vals[2] and sys_vals[2][0]: 
-            base["shop"] = json.loads(sys_vals[2][0][0])
-
-        # --- POJISTKA PRO BARVY ---
-        if "colors" not in base["market"]:
-            base["market"]["colors"] = {}
-        for c in COLORS:
-            if c not in base["market"]["colors"]:
-                base["market"]["colors"][c] = 2.0
-
-        # --- POJISTKA PRO OBCHOD ---
-        if not base["shop"]:
-            base["shop"] = DEFAULT_SHOP 
-
-        # 2. Načíst UŽIVATELE
-        user_rows = sheet_users.get_all_values()
-        for row in user_rows[1:]:
-            if len(row) >= 2 and row[0]:
-                uname = row[0]
-                try:
-                    udata = json.loads(row[1])
-                    base["users"][uname] = udata
-                except:
-                    continue 
-                
+        all_rows = sheet.get_all_values()
+        for row in all_rows[1:]: # Přeskočíme záhlaví
+            if len(row) < 2: continue
+            name, content = row[0], row[1]
+            
+            if name == "_SYSTEM_":
+                sys_data = json.loads(content)
+                base["market"] = sys_data.get("market", base["market"])
+                base["chat"] = sys_data.get("chat", base["chat"])
+                base["shop"] = sys_data.get("shop", base["shop"])
+            else:
+                base["users"][name] = json.loads(content)
         return base
-
     except Exception as e:
-        # Pokud nastane Quota Error, vypíšeme varování, ale nezboříme aplikaci
-        if "429" in str(e):
-            st.error("🚦 Google má moc práce. Zkus to za minutu.")
-        else:
-            st.error(f"⚠️ Chyba db: {e}")
+        st.error(f"⚠️ Chyba načítání: {e}")
         return base
 
-def save_data(data, target="all", specific_user=None):
-    """
-    Chytré ukládání s čističem paměti (Anti-Lag System)
-    """
+def save_data(data):
+    """Uloží kompletně vše do listu 'Data' - neprůstřelná metoda"""
     try:
-        sheet_users, sheet_sys = get_sheets()
+        client = init_connection()
+        sh = client.open("CihlyData_SANDBOX")
+        sheet = sh.worksheet("Data")
         
-        # A. Uložení SYSTÉMU (Market, Chat, Shop)
-        if target in ["all", "system"]:
+        # Příprava dat k zápisu
+        rows = [["Username", "Data"]] # Záhlaví
+        
+        # 1. Přidáme systém pod speciální jméno
+        sys_block = {"market": data["market"], "chat": data["chat"][-50:], "shop": data["shop"]}
+        rows.append(["_SYSTEM_", json.dumps(sys_block)])
+        
+        # 2. Přidáme všechny uživatele
+        for uname, udata in data["users"].items():
+            # Čistič historie pro plynulý chod
+            if "bets" in udata: udata["bets"] = udata["bets"][-30:]
+            if "trans" in udata: udata["trans"] = udata["trans"][-30:]
+            rows.append([uname, json.dumps(udata)])
             
-            # --- OMEZOVAČ CHATU ---
-            if len(data["chat"]) > 50:
-                data["chat"] = data["chat"][-50:] 
-            # ----------------------
-
-            sheet_sys.batch_update([
-                {'range': 'B1', 'values': [[json.dumps(data["market"])]]},
-                {'range': 'B2', 'values': [[json.dumps(data["chat"])]]},
-                {'range': 'B3', 'values': [[json.dumps(data["shop"])]]}
-            ])
-
-        # B. Uložení VŠECH UŽIVATELŮ (Pomalé - Admin)
-        if target == "all":
-            rows = [["Username", "Data"]]
-            for uname, udata in data["users"].items():
-                rows.append([uname, json.dumps(udata)])
-            sheet_users.clear()
-            sheet_users.update('A1', rows)
-            
-        # C. Uložení KONKRÉTNÍHO UŽIVATELE (Rychlé)
-        elif target == "user" and specific_user:
-            
-            # Načteme si data toho jednoho uživatele
-            user_data = data["users"][specific_user]
-
-            # 👇 OMEZOVAČ HISTORIE (Aby se nezaplnila paměť) 👇
-            if "bets" in user_data and len(user_data["bets"]) > 50:
-                user_data["bets"] = user_data["bets"][-50:]
-
-            if "trans" in user_data and len(user_data["trans"]) > 50:
-                user_data["trans"] = user_data["trans"][-50:]
-
-            if "item_history" in user_data and len(user_data["item_history"]) > 50:
-                 user_data["item_history"] = user_data["item_history"][-50:]
-            # 👆 KONEC OMEZOVAČE 👆
-
-            user_json = json.dumps(user_data)
-            
-            try:
-                cell = sheet_users.find(specific_user, in_column=1)
-                sheet_users.update_cell(cell.row, 2, user_json)
-            except:
-                sheet_users.append_row([specific_user, user_json])
-
+        sheet.clear()
+        sheet.update('A1', rows)
     except Exception as e:
-        st.error(f"⚠️ Chyba save: {e}")
+        st.error(f"⚠️ Chyba ukládání: {e}")
 
 # ==========================================
 # 💾 LOGIKA
@@ -342,40 +278,20 @@ if not st.session_state.user:
 # ==========================================
 else:
     me = st.session_state.user
-    
-    # --- POJISTKA PROTI PRÁZDNÝM DATŮM (Nové!) ---
-    if not data or "users" not in data:
-        st.warning("Data se ještě nenačetla z Google Sheets...")
-        st.stop()
-    
-    # 1. POJISTKA PROTI ODHLÁŠENÍ (Už máš správně odsazené)
-    if data["users"] and me not in data["users"]:
-        st.session_state.user = None
-        st.rerun()
-
-    # 2. POJISTKA PROTI KEYERROR (Aby to neházelo chybu, když data zrovna "cuknou")
-    if me not in data["users"]:
-        st.info("Pobírám data ze stavby... vteřinku.")
-        st.stop()
-        
-    # Teprve tady si kód bezpečně sáhne pro data hráče
+    if me not in data["users"]: st.session_state.user = None; st.rerun()
     user = data["users"][me]
     
-    # Doplnění chybějících klíčů (Pojistka pro staré účty)
     if "streak" not in user: user["streak"] = 0
-    if "stats" not in user: 
-        user["stats"] = {"total_bets":0,"total_wins":0,"total_losses":0,"max_win":0,"total_income_all":0,"total_bet_winnings":0,"total_spent":0,"color_counts":{}, "max_streak": 0}
+    if "stats" not in user: user["stats"] = {"total_bets":0,"total_wins":0,"total_losses":0,"max_win":0,"total_income_all":0,"total_bet_winnings":0,"total_spent":0,"color_counts":{}, "max_streak": 0}
 
-    # Sidebar s odhlášením
     if st.sidebar.button("Odhlásit"): 
         st.session_state.user = None
         st.session_state.admin_ok = False
         st.rerun()
     
-    # Výpočty pro zobrazení
-    rid = min(user.get("rank", 0), len(RANKS)-1)
-    max_slots = 3 + (user.get("slots", 0) * 2)
-    current_items = len(user.get("inv", []))
+    rid = min(user["rank"], len(RANKS)-1)
+    max_slots = 3 + (user["slots"] * 2)
+    current_items = len(user["inv"])
     
     st.sidebar.divider()
     streak_display = f"🔥 {user['streak']}" if user['streak'] > 0 else ""
