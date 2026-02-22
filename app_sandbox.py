@@ -87,18 +87,8 @@ DEFAULT_SHOP = [
 ]
 
 # ==========================================
-# ☁️ 2. GOOGLE CLOUD NAPOJENÍ (RYCHLEJŠÍ - CACHED)
+# ☁️ 2. GOOGLE CLOUD NAPOJENÍ (VŠE V JEDNOM LISTU)
 # ==========================================
-@st.cache_resource
-def init_connection():
-    scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-    creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
-    return gspread.authorize(creds)
-
-def get_sheet():
-    client = init_connection()
-    return client.open("CihlyData").sheet1
-
 @st.cache_resource
 def init_connection():
     scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
@@ -112,28 +102,36 @@ def load_data():
     
     try:
         client = init_connection()
+        # POZOR: Jméno tabulky musí přesně sedět s tím, co máš v Google Drive
         sh = client.open("CihlyData_SANDBOX")
         sheet = sh.worksheet("Data")
         
         all_rows = sheet.get_all_values()
+        if len(all_rows) <= 1: # Pokud je tam jen záhlaví nebo nic
+            return base
+
         for row in all_rows[1:]: # Přeskočíme záhlaví
-            if len(row) < 2: continue
+            if len(row) < 2 or not row[0]: continue
             name, content = row[0], row[1]
             
-            if name == "_SYSTEM_":
-                sys_data = json.loads(content)
-                base["market"] = sys_data.get("market", base["market"])
-                base["chat"] = sys_data.get("chat", base["chat"])
-                base["shop"] = sys_data.get("shop", base["shop"])
-            else:
-                base["users"][name] = json.loads(content)
+            try:
+                decoded_content = json.loads(content)
+                if name == "_SYSTEM_":
+                    base["market"] = decoded_content.get("market", base["market"])
+                    base["chat"] = decoded_content.get("chat", base["chat"])
+                    base["shop"] = decoded_content.get("shop", base["shop"])
+                else:
+                    base["users"][name] = decoded_content
+            except:
+                continue # Přeskočit poškozené řádky
+                
         return base
     except Exception as e:
         st.error(f"⚠️ Chyba načítání: {e}")
         return base
 
 def save_data(data):
-    """Uloží kompletně vše do listu 'Data' - neprůstřelná metoda"""
+    """Uloží kompletně vše do listu 'Data' - metoda přepsáním listu"""
     try:
         client = init_connection()
         sh = client.open("CihlyData_SANDBOX")
@@ -143,16 +141,21 @@ def save_data(data):
         rows = [["Username", "Data"]] # Záhlaví
         
         # 1. Přidáme systém pod speciální jméno
-        sys_block = {"market": data["market"], "chat": data["chat"][-50:], "shop": data["shop"]}
+        sys_block = {
+            "market": data["market"], 
+            "chat": data["chat"][-50:], 
+            "shop": data["shop"]
+        }
         rows.append(["_SYSTEM_", json.dumps(sys_block)])
         
         # 2. Přidáme všechny uživatele
         for uname, udata in data["users"].items():
-            # Čistič historie pro plynulý chod
+            # Čistič historie pro plynulý chod (Anti-Lag)
             if "bets" in udata: udata["bets"] = udata["bets"][-30:]
             if "trans" in udata: udata["trans"] = udata["trans"][-30:]
             rows.append([uname, json.dumps(udata)])
             
+        # Provedeme vymazání a jeden velký update (šetří API kvótu)
         sheet.clear()
         sheet.update('A1', rows)
     except Exception as e:
