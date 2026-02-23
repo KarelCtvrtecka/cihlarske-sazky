@@ -589,7 +589,48 @@ else:
             st.altair_chart(c_line, use_container_width=True)
         else:
             st.info("Zatím není dostatek dat pro vývoj kurzů (musí proběhnout alespoň 1 kolo).")
+        # --- NOVÝ GRAF VÝVOJE BOHATSTVÍ HRÁČŮ ---
+        st.divider()
+        st.subheader("💰 Vývoj bohatství hráčů")
+        
+        bal_hist = data["market"].get("bal_history", {})
+        
+        if bal_hist and any(len(h) > 1 for h in bal_hist.values()):
+            # DŮLEŽITÉ: key="slider_bal" zabraňuje konfliktu s prvním posuvníkem
+            limit_kol_bal = st.slider("Zobrazit posledních X kol (Hráči):", min_value=5, max_value=50, value=15, step=5, key="slider_bal")
             
+            bal_records = []
+            for uname, history in bal_hist.items():
+                zobrazeno = history[-limit_kol_bal:]
+                for i, val in enumerate(zobrazeno):
+                    bal_records.append({
+                        "Kolo": i + 1,
+                        "Hráč": uname,
+                        "Zůstatek": val
+                    })
+            
+            df_bal = pd.DataFrame(bal_records)
+            
+            # INTERAKTIVITA: Výběr hráče kliknutím
+            highlight_bal = alt.selection_point(fields=['Hráč'], bind='legend')
+            
+            # VYKRESLENÍ GRAFU
+            c_bal = alt.Chart(df_bal).mark_line(strokeWidth=4, point=alt.OverlayMarkDef(size=70)).encode(
+                x=alt.X('Kolo:O', title='Časová osa (Kola)'),
+                y=alt.Y('Zůstatek:Q', title='Zůstatek (CC)', scale=alt.Scale(zero=False)),
+                # Barvy hráčů se přidělí automaticky (Altair má zabudovanou pěknou paletu)
+                color=alt.Color('Hráč:N', legend=alt.Legend(title="👆 Klikni na hráče", symbolStrokeWidth=3, symbolSize=200)),
+                opacity=alt.condition(highlight_bal, alt.value(1.0), alt.value(0.1)), # Průhlednost
+                tooltip=['Hráč', 'Kolo', 'Zůstatek']
+            ).add_params(
+                highlight_bal
+            ).properties(height=450)
+            
+            st.altair_chart(c_bal, use_container_width=True)
+        else:
+            st.info("Zatím není dostatek dat pro vývoj bohatství hráčů (musí proběhnout alespoň 1 kolo).")
+            
+    # --- OBCHOD ---    
     # --- OBCHOD ---
     
 
