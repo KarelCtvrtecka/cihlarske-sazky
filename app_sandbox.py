@@ -595,7 +595,8 @@ else:
         
         bal_hist = data["market"].get("bal_history", {})
         
-        if bal_hist and any(len(h) > 1 for h in bal_hist.values()):
+        # TADY JE TA OPRAVA Z > 1 NA > 0
+        if bal_hist and any(len(h) > 0 for h in bal_hist.values()):
             # DŮLEŽITÉ: key="slider_bal" zabraňuje konfliktu s prvním posuvníkem
             limit_kol_bal = st.slider("Zobrazit posledních X kol (Hráči):", min_value=5, max_value=50, value=15, step=5, key="slider_bal")
             
@@ -629,9 +630,11 @@ else:
             st.altair_chart(c_bal, use_container_width=True)
         else:
             st.info("Zatím není dostatek dat pro vývoj bohatství hráčů (musí proběhnout alespoň 1 kolo).")
-            
-    # --- OBCHOD ---    
+
     # --- OBCHOD ---
+    elif page == "OBCHOD":
+        st.title("🛒 Obchod")
+        t1, t2 = st.tabs(["Povýšení", "Věci"])
     
 
     # --- OBCHOD ---
@@ -1024,8 +1027,24 @@ else:
                                 data["market"]["odds_history"][c].pop(0)
 
                         # ----------------------------------------------------
+                        # (tady nahoře ti končí ten tvůj výpočet kurzů)
+                        # ----------------------------------------------------
+
+                        # 👇 TENTO BLOK SEM VLOŽ (dej pozor, aby to odsazení zleva bylo přesně jako u save_data) 👇
+                        if "bal_history" not in data["market"]:
+                            data["market"]["bal_history"] = {}
                         
+                        for uname_history, u_data in data["users"].items():
+                            if uname_history not in data["market"]["bal_history"]:
+                                data["market"]["bal_history"][uname_history] = []
+                            data["market"]["bal_history"][uname_history].append(u_data["bal"])
+                            
+                            if len(data["market"]["bal_history"][uname_history]) > 50:
+                                data["market"]["bal_history"][uname_history].pop(0)
+                        # 👆 KONEC VLOŽENÉHO BLOKU 👆
+
                         save_data(data); st.success("Hotovo!")
+                        
             
             with t2:
                 sel = st.selectbox("Hráč", list(data["users"].keys()))
