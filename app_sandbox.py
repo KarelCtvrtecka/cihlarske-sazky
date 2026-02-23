@@ -97,9 +97,18 @@ def init_connection():
 
 def load_data():
     """Načte vše z jednoho listu 'Data' (Uživatelé + Systém)"""
-    # Základní struktura, kdyby byla tabulka prázdná
-    base = {"users": {}, "market": {"status": "CLOSED", "colors": {c: 2.0 for c in COLORS}}, "chat": [], "shop": DEFAULT_SHOP}
-    
+  # Změněno: Přidána odds_history a neaktivita_count pro nový výpočet
+    base = {
+        "users": {}, 
+        "market": {
+            "status": "CLOSED", 
+            "colors": {c: 2.0 for c in COLORS},
+            "odds_history": {c: [2.0] for c in COLORS},
+            "neaktivita_count": {c: 0 for c in COLORS}
+        }, 
+        "chat": [], 
+        "shop": DEFAULT_SHOP
+    }
     try:
         client = init_connection()
         # POZOR: Jméno tabulky musí přesně sedět s tím, co máš v Google Drive
@@ -859,17 +868,64 @@ else:
                         
                         data["chat"].append({"u":"SYS", "t":win_msg, "tm":get_time(), "r":"BOT"})
                         
-                        # --- NOVÁ LOGIKA ZMĚNY KURZŮ (RANDOM 0.0 - 0.3) ---
+                        # --- VÝPOČET KURZŮ MARKET BALANCE 2.0 ---
+                        
+                        # Zajištění existence nových slovníků (zpětná kompatibilita)
+                        if "odds_history" not in data["market"]:
+                            data["market"]["odds_history"] = {c: [data["market"]["colors"].get(c, 2.0)] for c in COLORS}
+                        if "neaktivita_count" not in data["market"]:
+                            data["market"]["neaktivita_count"] = {c: 0 for c in COLORS}
+
+                        # 1. Zjištění počtu unikátních hráčů, kteří vsadili
+                        celkem_sazejicich = 0
+                        hraci_na_barve = {c: 0 for c in COLORS}
+                        
+                        for uname, u in data["users"].items():
+                            vsadil = False
+                            for b in u["bets"]:
+                                if b["st"] in ["WON", "LOST"] and b["c"] in COLORS: # Pouze právě vyhodnocené sázky
+                                    hraci_na_barve[b["c"]] += 1
+                                    vsadil = True
+                            if vsadil:
+                                celkem_sazejicich += 1
+
+                        celkovy_objem = sum(round_bets.values())
+
                         for c in data["market"]["colors"]:
-                            # Generujeme změnu mezi 0.0 a 0.3
-                            change = round(random.uniform(0.0, 0.3), 1)
+                            k_n = data["market"]["colors"][c]
                             
+                            # 2. Výpočet vážené popularity (P_final)
+                            w_money = round_bets.get(c, 0) / celkovy_objem if celkovy_objem > 0 else 0
+                            w_social = hraci_na_barve.get(c, 0) / celkem_sazejicich if celkem_sazejicich > 0 else 0
+                            p_final = (0.7 * w_money) + (0.3 * w_social)
+
+                            # 3. Asymetrická tržní změna
                             if c in winners:
-                                # Výhra: pokles o 0.0 až 0.3, minimum 1.1
-                                data["market"]["colors"][c] = max(1.1, round(data["market"]["colors"][c] - change, 1))
+                                # Vítěz spadne
+                                zmena = -(0.6 + p_final * 0.4)
+                                data["market"]["neaktivita_count"][c] = 0
                             else:
-                                # Prohra: nárůst o 0.0 až 0.3
-                                data["market"]["colors"][c] = round(data["market"]["colors"][c] + change, 1)
+                                # Poražený roste
+                                zmena = 0.1 + (0.1 * (1 - p_final))
+                                data["market"]["neaktivita_count"][c] += 1
+                                
+                            # 4. Podmíněná gravitace (pouze pro neaktivní)
+                            tah_gravitace = (2.0 - k_n) * 0.3 if data["market"]["neaktivita_count"][c] > 1 else 0
+                            
+                            # 5. Šum
+                            sum_trhu = random.uniform(-0.1, 0.1)
+                            
+                            # 6. Výpočet a zápis nového kurzu
+                            novy_kurz = k_n + zmena + tah_gravitace + sum_trhu
+                            novy_kurz = round(max(1.1, novy_kurz), 1)
+                            
+                            data["market"]["colors"][c] = novy_kurz
+                            data["market"]["odds_history"][c].append(novy_kurz)
+                            
+                            # Omezovač historie proti přetečení databáze (držíme jen posledních 50 kol)
+                            if len(data["market"]["odds_history"][c]) > 50:
+                                data["market"]["odds_history"][c].pop(0)
+
                         # ----------------------------------------------------
                         
                         save_data(data); st.success("Hotovo!")
