@@ -503,7 +503,7 @@ else:
         c8.markdown(f"<div class='stat-box'><div class='stat-label'>Aktuální Streak</div><div class='stat-val' style='color:#ff4500'>🔥 {user['streak']}</div></div>", unsafe_allow_html=True)
         c9.markdown(f"<div class='stat-box'><div class='stat-label'>Nejvyšší Streak</div><div class='stat-val' style='color:#fd7e14'>🏆 {s.get('max_streak', 0)}</div></div>", unsafe_allow_html=True)
 
-    # --- GRAFY ---
+   # --- GRAFY ---
     elif page == "GRAFY":
         st.title("📈 Tržní data")
         
@@ -540,6 +540,43 @@ else:
             st.altair_chart(c_last, use_container_width=True)
         else:
             st.caption("Data nejsou k dispozici.")
+        
+        # --- NOVÝ GRAF VÝVOJE KURZŮ ---
+        st.divider()
+        st.subheader("📈 Vývoj kurzů v čase")
+        
+        odds_hist = data["market"].get("odds_history", {})
+        
+        # Zkontrolujeme, jestli už máme nějaká data (alespoň 1 kolo za námi)
+        if odds_hist and any(len(h) > 1 for h in odds_hist.values()):
+            # Interaktivní posuvník pro hráče (ukáže 5 až 50 kol)
+            limit_kol = st.slider("Zobrazit posledních X kol:", min_value=5, max_value=50, value=15, step=5)
+            
+            hist_records = []
+            for c_name, history in odds_hist.items():
+                # Vezmeme jen vybraný počet posledních kol
+                zobrazeno = history[-limit_kol:]
+                for i, val in enumerate(zobrazeno):
+                    hist_records.append({
+                        "Kolo": i + 1,  # Relativní číslování (1 je nejstarší zobrazené)
+                        "Barva": c_name,
+                        "Kurz": val
+                    })
+            
+            df_hist = pd.DataFrame(hist_records)
+            
+            # Vytvoření čárového grafu (Line Chart) v Altair
+            c_line = alt.Chart(df_hist).mark_line(strokeWidth=3, point=True).encode(
+                x=alt.X('Kolo:O', title='Časová osa (Kola)'),
+                y=alt.Y('Kurz:Q', title='Kurz (CC)', scale=alt.Scale(zero=False)),
+                color=alt.Color('Barva:N', scale=alt.Scale(domain=list(COLORS.keys()), range=list(COLORS.values())), legend=alt.Legend(title="Barvy")),
+                tooltip=['Barva', 'Kurz']
+            ).properties(height=450)
+            
+            st.altair_chart(c_line, use_container_width=True)
+        else:
+            st.info("Zatím není dostatek dat pro vývoj kurzů (musí proběhnout alespoň 1 kolo).")
+    
 
     # --- OBCHOD ---
     elif page == "OBCHOD":
