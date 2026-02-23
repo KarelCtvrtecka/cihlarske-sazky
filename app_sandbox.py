@@ -565,17 +565,32 @@ else:
             
             df_hist = pd.DataFrame(hist_records)
             
-            # Vytvoření čárového grafu (Line Chart) v Altair
-            c_line = alt.Chart(df_hist).mark_line(strokeWidth=3, point=True).encode(
+            # 1. FIX BÍLÉ BARVY: Pro graf změníme čistě bílou na světle šedou, aby byla vidět na pozadí
+            graf_barvy = list(COLORS.values())
+            bila_index = list(COLORS.keys()).index("Bílá")
+            graf_barvy[bila_index] = "#d1d1d1" # Ztmavená bílá (světle šedá)
+            
+            # 2. INTERAKTIVITA: Vytvoříme výběr kliknutím na legendu
+            highlight = alt.selection_point(fields=['Barva'], bind='legend')
+            
+            # 3. VYKRESLENÍ GRAFU S EFEKTEM VYBLEDNUTÍ
+            c_line = alt.Chart(df_hist).mark_line(strokeWidth=4, point=alt.OverlayMarkDef(size=70)).encode(
                 x=alt.X('Kolo:O', title='Časová osa (Kola)'),
                 y=alt.Y('Kurz:Q', title='Kurz (CC)', scale=alt.Scale(zero=False)),
-                color=alt.Color('Barva:N', scale=alt.Scale(domain=list(COLORS.keys()), range=list(COLORS.values())), legend=alt.Legend(title="Barvy")),
-                tooltip=['Barva', 'Kurz']
+                color=alt.Color('Barva:N', 
+                                scale=alt.Scale(domain=list(COLORS.keys()), range=graf_barvy), 
+                                legend=alt.Legend(title="👆 Klikni na barvu", symbolStrokeWidth=3, symbolSize=200)),
+                opacity=alt.condition(highlight, alt.value(1.0), alt.value(0.1)), # Vybraná svítí, ostatní jsou na 10 %
+                tooltip=['Barva', 'Kolo', 'Kurz']
+            ).add_params(
+                highlight
             ).properties(height=450)
             
             st.altair_chart(c_line, use_container_width=True)
         else:
             st.info("Zatím není dostatek dat pro vývoj kurzů (musí proběhnout alespoň 1 kolo).")
+            
+    # --- OBCHOD ---
     
 
     # --- OBCHOD ---
