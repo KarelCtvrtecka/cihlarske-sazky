@@ -95,6 +95,7 @@ def init_connection():
     creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
     return gspread.authorize(creds)
 
+@st.cache_data(ttl=2, show_spinner=False)  # <--- TADY PŘIDÁŠ TENTO ŘÁDEK
 def load_data():
     """Načte vše z jednoho listu 'Data' (Uživatelé + Systém)"""
   # Změněno: Přidána odds_history a neaktivita_count pro nový výpočet
@@ -167,6 +168,9 @@ def save_data(data):
         # Provedeme vymazání a jeden velký update (šetří API kvótu)
         sheet.clear()
         sheet.update('A1', rows)
+        # 👇 SEM VLOŽÍŠ TENTO ŘÁDEK 👇
+        load_data.clear()
+        # 👆 ---------------------- 👆
     except Exception as e:
         st.error(f"⚠️ Chyba ukládání: {e}")
 
