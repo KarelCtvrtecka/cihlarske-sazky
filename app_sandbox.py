@@ -382,7 +382,7 @@ else:
                         if st.button("Vsadit", key=f"b_{c_name}"):
                             st.session_state["target"] = (c_name, odd)
                     idx += 1
-                
+                            
                     if "target" in st.session_state:
                     tc, to = st.session_state["target"]
                     st.info(f"Tiket: **{tc}** (Kurz {to})")
