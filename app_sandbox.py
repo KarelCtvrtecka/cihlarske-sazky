@@ -69,11 +69,11 @@ COLORS = {
 
 RANKS = [
     {"name": "Pomocná síla", "inc": 50, "css": "bg-0"}, 
-    {"name": "Kopáč", "inc": 60, "css": "bg-1"},
-    {"name": "Zedník", "inc": 75, "css": "bg-2"}, 
-    {"name": "Zásobovač", "inc": 120, "css": "bg-3"},
-    {"name": "Stavbyvedoucí", "inc": 250, "css": "bg-4"}, 
-    {"name": "Cihlobaron", "inc": 550, "css": "bg-5"}
+    {"name": "Kopáč", "inc": 150, "css": "bg-1"},
+    {"name": "Zedník", "inc": 400, "css": "bg-2"}, 
+    {"name": "Zásobovač", "inc": 1000, "css": "bg-3"},
+    {"name": "Stavbyvedoucí", "inc": 3000, "css": "bg-4"}, 
+    {"name": "Cihlobaron", "inc": 10000, "css": "bg-5"}
 ]
 
 DEFAULT_SHOP = [
