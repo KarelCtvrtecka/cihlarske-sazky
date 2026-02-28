@@ -631,66 +631,149 @@ else:
         else:
             st.info("Zatím není dostatek dat pro vývoj bohatství hráčů (musí proběhnout alespoň 1 kolo).")
 
-       # --- AI PREDIKCE TRHU ---
+      # --- AI PREDIKCE VÍTĚZE (Hledání skrytých vzorců a Backtesting) ---
         st.divider()
-        st.subheader("🤖 AI Analytik: Kde je největší hodnota?")
-        st.caption("Algoritmus počítá tzv. 'Value Score' (0-100) na základě aktuálního kurzu, hybnosti trhu a rizika zásahu gravitace.")
+        st.subheader("🧠 Pokročilá AI Analýza: Predikce a Vzorce")
+        st.caption("Model analyzuje posledních 15 kol, detekuje skryté trendy (vzorce) a ověřuje svou historickou úspěšnost (Backtesting).")
         
-        predictions = []
+        predikce_vyhry = []
+        celkova_vaha = 0
+        
+        # --- 1. HLEDÁNÍ SKRYTÝCH VZORCŮ (Až 15 kol dozadu) ---
         for c_name, current_odd in data["market"]["colors"].items():
             history = data["market"]["odds_history"].get(c_name, [current_odd])
             
-            # 1. Výpočet krátkodobého trendu
-            trend = current_odd - history[-2] if len(history) >= 2 else 0
+            # Bereme posledních max 15 kol pro hlubokou analýzu
+            analyzovana_historie = history[-15:] if len(history) >= 15 else history
             
-            # 2. Výpočet "Skóre výhodnosti" (Value Score)
-            # Základní skóre dané výškou kurzu (průměrně kolem 50 bodů)
-            score = 50 + (current_odd - 2.0) * 15 
+            # A) Základní šance (převrácená hodnota kurzu)
+            zakladni_sance = 1.0 / current_odd
             
-            # Bonus za to, že barva zrovna roste
-            score += trend * 25 
+            # B) Skryté vzorce: Dlouhodobé Momentum
+            trend_bonus = 0
+            if len(analyzovana_historie) >= 3:
+                # Rozdíl mezi začátkem sledovaného období a současností
+                dlouhodoba_zmena = analyzovana_historie[0] - current_odd
+                trend_bonus = dlouhodoba_zmena * 0.05
             
-            # Penalizace za "Přehřátý trh" (nad 3.5 už je vysoké riziko pádu kvůli gravitaci)
-            if current_odd > 3.5:
-                score -= (current_odd - 3.5) * 20
+            # C) Skryté vzorce: Detekce tlakového hrnce (Mean Reversion)
+            # Zjišťuje, jestli barva už dlouho neprohrávala (kurz jen roste)
+            rust_v_rade = 0
+            for i in range(1, len(analyzovana_historie)):
+                if analyzovana_historie[i] > analyzovana_historie[i-1]:
+                    rust_v_rade += 1
+                else:
+                    rust_v_rade = 0
+            
+            # Pokud prohrává (roste) 4 a více kol v řadě, AI tuší, že "už to musí prasknout"
+            tlakovy_bonus = 0
+            if rust_v_rade >= 4:
+                tlakovy_bonus = rust_v_rade * 0.08
                 
-            score = max(1, min(99, int(score))) # Udržet v grafických mezích 1-99
+            # Celkové skóre = Základ + Momentum + Tlakový hrnec
+            skore = max(0.01, zakladni_sance + trend_bonus + tlakovy_bonus)
+            celkova_vaha += skore
             
-            # Textové zhodnocení
-            if score >= 75: doporuceni = "🔥 Silný nákup (Top Value)"
-            elif score >= 55: doporuceni = "👍 Dobrá příležitost"
-            elif score >= 40: doporuceni = "⚖️ Neutrální"
-            else: doporuceni = "⚠️ Nevýhodné / Bublina"
-            
-            predictions.append({
+            predikce_vyhry.append({
                 "Barva": c_name,
-                "Kurz": current_odd,
-                "Skóre": score,
-                "Doporučení": doporuceni
+                "Surove_Skore": skore
             })
             
-        # Seřazení od nejlepšího po nejhorší
-        if predictions:
-            predictions = sorted(predictions, key=lambda x: x["Skóre"], reverse=True)
+        # --- 2. PŘEPOČET NA PROCENTA ---
+        graf_data = []
+        for p in predikce_vyhry:
+            procenta = (p["Surove_Skore"] / celkova_vaha) * 100
+            graf_data.append({
+                "Barva": p["Barva"],
+                "Šance na výhru (%)": round(procenta, 1)
+            })
             
-            # Vyhlášení absolutního vítěze
-            top_pick = predictions[0]
-            st.success(f"🏆 **Nejlepší tip na další kolo:** Vsaď na barvu **{top_pick['Barva']}** (Kurz {top_pick['Kurz']:.1f} CC). Podle algoritmu má teď nejlepší poměr rizika a potenciálního zisku (Skóre: {top_pick['Skóre']}/100).")
+        df_ai = pd.DataFrame(graf_data)
+        
+        # --- 3. VÝPOČET HISTORICKÉ ÚSPĚŠNOSTI AI (BACKTESTING) ---
+        spravne_tipy = 0
+        celkem_testovano = 0
+        
+        # Ochrana proti chybám: vezmeme jakoukoliv barvu pro zjištění délky historie
+        if data["market"]["colors"]:
+            referencni_barva = list(data["market"]["colors"].keys())[0]
+            delka_historie = len(data["market"]["odds_history"].get(referencni_barva, []))
             
-            # Zobrazení profi tabulky s "Progress barem"
-            df_pred = pd.DataFrame(predictions)
-            st.dataframe(
-                df_pred, 
-                column_config={
-                    "Skóre": st.column_config.ProgressColumn(
-                        "Skóre výhodnosti", format="%f", min_value=0, max_value=100
-                    ),
-                    "Kurz": st.column_config.NumberColumn("Aktuální kurz", format="%.1f CC")
-                },
-                use_container_width=True, 
-                hide_index=True
+            # Můžeme testovat až když máme víc jak 3 kola dat
+            if delka_historie > 3:
+                for i in range(3, delka_historie):
+                    # Zjištění, kdo reálně vyhrál v minulém kole 'i' (ten, komu nejvíc klesl kurz)
+                    skutecny_vitez = None
+                    nejvetsi_pokles = 0
+                    for c_name in data["market"]["colors"]:
+                        hist = data["market"]["odds_history"].get(c_name, [])
+                        if len(hist) > i:
+                            pokles = hist[i-1] - hist[i]
+                            if pokles > nejvetsi_pokles:
+                                nejvetsi_pokles = pokles
+                                skutecny_vitez = c_name
+                                
+                    # Co by na to tipovalo AI, kdyby stálo v kole 'i-1'?
+                    tip_ai = None
+                    nej_skore = -1
+                    for c_name in data["market"]["colors"]:
+                        hist = data["market"]["odds_history"].get(c_name, [])
+                        if len(hist) >= i:
+                            k_minuly = hist[i-1]
+                            # Jednoduchá AI simulace pro minulost
+                            skore_minule = (1.0 / k_minuly) + ((hist[i-3] - k_minuly) * 0.05) if i>=3 else (1.0 / k_minuly)
+                            if skore_minule > nej_skore:
+                                nej_skore = skore_minule
+                                tip_ai = c_name
+                                
+                    if skutecny_vitez and tip_ai == skutecny_vitez:
+                        spravne_tipy += 1
+                    celkem_testovano += 1
+                    
+                uspesnost_procenta = (spravne_tipy / celkem_testovano) * 100 if celkem_testovano > 0 else 0
+            else:
+                uspesnost_procenta = 0.0
+                
+            # Zobrazení krásné "Metriky" nad grafem
+            nahodna_sance = (1 / len(data["market"]["colors"])) * 100 if len(data["market"]["colors"]) > 0 else 7.1
+            st.metric(
+                label="📊 Historická přesnost AI modelu", 
+                value=f"{uspesnost_procenta:.1f} %", 
+                delta=f"{uspesnost_procenta - nahodna_sance:.1f} % oproti náhodnému hádání",
+                help="Provede zpětný test (backtest). Model se vrátí v čase a simuluje své tipy na již odehraná kola."
             )
 
+        # --- 4. VYKRESLENÍ GRAFU ---
+        # Fix pro bílou barvu
+        graf_barvy_ai = list(COLORS.values()) if 'COLORS' in globals() else []
+        if 'COLORS' in globals() and "Bílá" in COLORS:
+            bila_index_ai = list(COLORS.keys()).index("Bílá")
+            graf_barvy_ai[bila_index_ai] = "#d1d1d1"
+            
+        bars = alt.Chart(df_ai).mark_bar(cornerRadiusTopLeft=5, cornerRadiusTopRight=5).encode(
+            x=alt.X('Barva:N', sort='-y', title='Barvy (Seřazeno od největší pravděpodobnosti)'),
+            y=alt.Y('Šance na výhru (%):Q', title='Pravděpodobnost výhry (%)'),
+            color=alt.Color('Barva:N', scale=alt.Scale(domain=list(COLORS.keys()), range=graf_barvy_ai) if 'COLORS' in globals() else alt.value('blue'), legend=None),
+            tooltip=['Barva', 'Šance na výhru (%)']
+        )
+        
+        text = bars.mark_text(
+            align='center',
+            baseline='bottom',
+            dy=-5,
+            fontSize=15,
+            fontWeight='bold'
+        ).encode(
+            text=alt.Text('Šance na výhru (%):Q', format='.1f')
+        )
+        
+        c_ai = (bars + text).properties(height=400)
+        st.altair_chart(c_ai, use_container_width=True)
+        
+        # Vyhlášení favorita
+        if graf_data:
+            nejlepsi = max(graf_data, key=lambda x: x["Šance na výhru (%)"])
+            st.success(f"🏆 **Největší favorit AI:** Podle 15-kolové analýzy vzorců má nyní největší šanci na výhru barva **{nejlepsi['Barva']}** ({nejlepsi['Šance na výhru (%)']} %).")
     
 
     # --- OBCHOD ---
