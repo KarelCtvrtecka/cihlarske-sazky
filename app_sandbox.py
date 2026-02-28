@@ -633,8 +633,8 @@ else:
 
       # --- AI PREDIKCE VÍTĚZE (Hledání skrytých vzorců a Backtesting) ---
         st.divider()
-        st.subheader("🧠 Pokročilá AI Analýza: Predikce a Vzorce")
-        st.caption("Model analyzuje posledních 15 kol, detekuje skryté trendy (vzorce) a ověřuje svou historickou úspěšnost (Backtesting).")
+        st.subheader("Predikce výhry")
+        st.caption("Model analyzuje posledních 15 kol a vyhodnocuje jejich šance na výhru")
         
         predikce_vyhry = []
         celkova_vaha = 0
@@ -751,7 +751,7 @@ else:
             graf_barvy_ai[bila_index_ai] = "#d1d1d1"
             
         bars = alt.Chart(df_ai).mark_bar(cornerRadiusTopLeft=5, cornerRadiusTopRight=5).encode(
-            x=alt.X('Barva:N', sort='-y', title='Barvy (Seřazeno od největší pravděpodobnosti)'),
+            x=alt.X('Barva:N', sort='-y', title='Barvy'),
             y=alt.Y('Šance na výhru (%):Q', title='Pravděpodobnost výhry (%)'),
             color=alt.Color('Barva:N', scale=alt.Scale(domain=list(COLORS.keys()), range=graf_barvy_ai) if 'COLORS' in globals() else alt.value('blue'), legend=None),
             tooltip=['Barva', 'Šance na výhru (%)']
