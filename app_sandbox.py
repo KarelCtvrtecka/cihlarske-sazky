@@ -737,7 +737,7 @@ else:
             # Zobrazení krásné "Metriky" nad grafem
             nahodna_sance = (1 / len(data["market"]["colors"])) * 100 if len(data["market"]["colors"]) > 0 else 7.1
             st.metric(
-                label="📊 Historická přesnost AI modelu", 
+                label="📊 Historická přesnost modelu", 
                 value=f"{uspesnost_procenta:.1f} %", 
                 delta=f"{uspesnost_procenta - nahodna_sance:.1f} % oproti náhodnému hádání",
                 help="Provede zpětný test (backtest). Model se vrátí v čase a simuluje své tipy na již odehraná kola."
@@ -773,7 +773,7 @@ else:
         # Vyhlášení favorita
         if graf_data:
             nejlepsi = max(graf_data, key=lambda x: x["Šance na výhru (%)"])
-            st.success(f"🏆 **Největší favorit AI:** Podle 15-kolové analýzy vzorců má nyní největší šanci na výhru barva **{nejlepsi['Barva']}** ({nejlepsi['Šance na výhru (%)']} %).")
+            st.success(f"🏆 **Největší favorit:**  **{nejlepsi['Barva']}** ({nejlepsi['Šance na výhru (%)']} %).")
     
 
     # --- OBCHOD ---
