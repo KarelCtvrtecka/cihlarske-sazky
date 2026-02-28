@@ -631,10 +631,7 @@ else:
         else:
             st.info("Zatím není dostatek dat pro vývoj bohatství hráčů (musí proběhnout alespoň 1 kolo).")
 
-    # --- OBCHOD ---
-    elif page == "OBCHOD":
-        st.title("🛒 Obchod")
-        t1, t2 = st.tabs(["Povýšení", "Věci"])
+
     
 
     # --- OBCHOD ---
