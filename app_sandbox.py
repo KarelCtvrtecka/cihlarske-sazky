@@ -947,7 +947,7 @@ else:
             st.write("""
             **Cíl hry:** Získat co nejvíce Cihlakoinů (CC) a stát se Cihlobaronem.
             1.  **Výplata:** Každý herní den si vyzvedni mzdu v sekci DOMŮ.
-            2.  **Sázky:** Vsaď na barvu. Pokud vyhraje, získáš násobek vkladu.
+            2.  **Sázky:** Vsaď na barvu. Pokud vyhraje, získáš násobek vkladu. Předměty můžeš přidat přímo k sázce!
             3.  **Streak:** Pokud vyhraješ všechny své sázky v kole, roste ti 🔥 Streak. Jediná chyba a padáš na nulu.
             """)
         
@@ -955,21 +955,22 @@ else:
         st.subheader("🎒 KATALOG PŘEDMĚTŮ")
         
         st.markdown("""
-        ### 🔵 Aktivní předměty (Použij v Batohu)
-        *Předměty typu 'Use' musíš ručně aktivovat v Batohu před tím, než jdou do akce.*
+        ### 🔵 Aktivní předměty (Použití u sázky)
+        *Většinu těchto předmětů si vybíráš z batohu **přímo na úvodní stránce při zadávání sázky**.*
 
         **🧃 Svačina (Cena: 50 CC)**
         * **Co dělá:** Okamžitě ti přidá 50 CC do peněženky.
+        * **Jak použít:** *Výjimka!* Jdi do **Batohu** a klikni na "Sníst".
         * **Kdy koupit:** Když jsi úplně na dně a nemáš ani na vklad. Je to záchranná brzda.
 
         **🧱 Zlatá Cihla (Cena: 1000 CC)**
         * **Co dělá:** Zdvojnásobí tvou výhru.
-        * **Jak použít:** Kup ji -> Jdi do Batohu -> Klikni "Použít" (aktivuje se bonus) -> Jdi vsadit.
+        * **Jak použít:** Kup ji -> Jdi vsadit na úvodní stránku -> Vyber ji z nabídky předmětů pod sázkou.
         * **Riziko:** Pokud sázku prohraješ, o cihlu přijdeš a nedostaneš nic. Pokud vyhraješ, získáš balík.
 
         **👷 BOZP Helma (Cena: 300 CC)**
         * **Co dělá:** Funguje jako pojištění sázky.
-        * **Jak použít:** Kup ji -> Jdi do Batohu -> Klikni "Použít" -> Jdi vsadit.
+        * **Jak použít:** Kup ji -> Jdi vsadit na úvodní stránku -> Vyber ji z nabídky předmětů pod sázkou.
         * **Efekt:** Pokud tvá sázka **prohraje**, vrátí se ti **50 % vkladu**. Pokud vyhraješ, helma se spotřebuje bez efektu.
 
         ---
