@@ -429,7 +429,13 @@ else:
         if pending:
             for b in pending:
                 bonus_txt = f" (+ {b['bonus']})" if b.get('bonus') else ""
-                st.markdown(f"<div class='ticket-pending'><b>{b['c']}</b> | {b['a']} CC{bonus_txt}</div>", unsafe_allow_html=True)
+                
+                # NOVÉ: Vypsání itemů na aktivním tiketu
+                items_txt = ""
+                if b.get('items'):
+                    items_txt = f"<br><span style='font-size: 0.8em; color: #555;'>🎒 Použito: {', '.join(b['items'])}</span>"
+                    
+                st.markdown(f"<div class='ticket-pending'><b>{b['c']}</b> | {b['a']} CC{bonus_txt}{items_txt}</div>", unsafe_allow_html=True)
         else: st.caption("Žádné aktivní sázky.")
             
         with st.expander("📜 Historie sázek"):
@@ -442,7 +448,11 @@ else:
                     profit_info = f"(+{profit} profit)"
                 elif b["st"] == "LOST" and b.get("insurance"):
                     profit_info = "(Pojištěno 50%)"
-                st.markdown(f"<div class='{cls}'>{res} <b>{b['c']}</b> ({b['a']} CC) {profit_info}</div>", unsafe_allow_html=True)
+                    
+                # NOVÉ: Vypsání itemů i v historii
+                items_txt = f" <span style='font-size: 0.85em;'>[🎒 {', '.join(b['items'])}]</span>" if b.get('items') else ""
+                
+                st.markdown(f"<div class='{cls}'>{res} <b>{b['c']}</b> ({b['a']} CC) {profit_info}{items_txt}</div>", unsafe_allow_html=True)
 
     # --- ŽEBŘÍČEK ---
     elif page == "ŽEBŘÍČEK":
