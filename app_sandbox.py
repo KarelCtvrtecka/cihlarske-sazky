@@ -740,7 +740,6 @@ else:
                 label="📊 Historická přesnost modelu", 
                 value=f"{uspesnost_procenta:.1f} %", 
                 delta=f"{uspesnost_procenta - nahodna_sance:.1f} % oproti náhodnému hádání",
-                help="Provede zpětný test (backtest). Model se vrátí v čase a simuluje své tipy na již odehraná kola."
             )
 
         # --- 4. VYKRESLENÍ GRAFU ---
