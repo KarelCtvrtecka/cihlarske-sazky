@@ -631,6 +631,57 @@ else:
         else:
             st.info("Zatím není dostatek dat pro vývoj bohatství hráčů (musí proběhnout alespoň 1 kolo).")
 
+        # --- PREDIKCE TRHU ---
+        st.divider()
+        st.subheader("🔮 Prediktivní analýza trhu")
+        st.caption("Tento expertní systém analyzuje hybnost kurzů (momentum) a sílu tržní gravitace algoritmu Market Balance.")
+        
+        predictions = []
+        for c_name, current_odd in data["market"]["colors"].items():
+            history = data["market"]["odds_history"].get(c_name, [current_odd])
+            
+            # 1. Výpočet Momentuma (Trend z posledních až 3 kol)
+            if len(history) >= 3:
+                trend = current_odd - history[-3]
+            elif len(history) == 2:
+                trend = current_odd - history[-2]
+            else:
+                trend = 0
+                
+            # 2. Vliv tajné herní gravitace
+            if current_odd >= 5.0:
+                gravitace = "⚠️ Kritický tlak dolů"
+                doporuceni = "🔴 Extrémní riziko"
+            elif current_odd >= 3.0:
+                gravitace = "⏬ Zvýšený pokles"
+                doporuceni = "🟠 Rizikové"
+            elif current_odd <= 1.4:
+                gravitace = "⏫ Odraz ode dna"
+                doporuceni = "🟢 Výhodné (Value)"
+            else:
+                gravitace = "⚖️ Neutrální"
+                doporuceni = "🟡 Stabilní"
+                
+            # 3. Textové vyjádření trendu
+            if trend > 0.3: trend_sym = "📈 Silně rostoucí"
+            elif trend > 0.0: trend_sym = "↗️ Mírně rostoucí"
+            elif trend < -0.3: trend_sym = "📉 Silně klesající"
+            elif trend < 0.0: trend_sym = "↘️ Mírně klesající"
+            else: trend_sym = "➡️ Bez změny"
+            
+            predictions.append({
+                "Barva": c_name,
+                "Kurz": f"{current_odd:.1f}",
+                "Krátkodobý Trend": trend_sym,
+                "Tržní Gravitace": gravitace,
+                "Doporučení": doporuceni
+            })
+            
+        # Zobrazení krásné tabulky
+        if predictions:
+            df_pred = pd.DataFrame(predictions)
+            st.dataframe(df_pred, use_container_width=True, hide_index=True)
+
 
     
 
