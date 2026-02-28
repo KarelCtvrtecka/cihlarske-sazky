@@ -861,15 +861,23 @@ else:
             item_def = next((x for x in data["shop"] if x["name"] == item_name), None)
             item_type = item_def["type"] if item_def else "unknown"
             
-            if item_type == "use":
-                if c2.button("Použít", key=f"use_{i}"):
-                    if "Svačina" in item_name:
-                        user["bal"] += 50; st.success("+50 CC"); log_item_usage(user, "Svačina", "Doplněno")
-                    elif "Cihla" in item_name or "BOZP" in item_name:
-                        user["bonus"] = item_name; st.success(f"Aktivováno: {item_name}"); log_item_usage(user, item_name, "Aktivován bonus")
-                    user["inv"].pop(i); save_data(data); st.rerun()
-            elif item_type == "passive": c2.caption("🛡️ Automatické")
-            elif item_type == "atk": c2.caption("👊 Použij v Žebříčku")
+            # --- CHYTRÉ ROZTŘÍDĚNÍ TLAČÍTEK ---
+            if "Svačina" in item_name:
+                # Svačinu můžeme dál normálně jíst přímo z batohu
+                if c2.button("Sníst (+50 CC)", key=f"use_{i}"):
+                    user["bal"] += 50
+                    st.success("+50 CC")
+                    log_item_usage(user, "Svačina", "Doplněno")
+                    user["inv"].pop(i)
+                    save_data(data)
+                    st.rerun()
+            elif item_type == "use": 
+                # Ostatní "use" itemy (Cihla, BOZP...) se už naklikávají na úvodní stránce
+                c2.caption("🎒 Používá se při sázce")
+            elif item_type == "passive": 
+                c2.caption("🛡️ Automatické")
+            elif item_type == "atk": 
+                c2.caption("👊 Použij v Žebříčku")
 
         st.divider()
         with st.expander("📜 Historie použití itemů"):
