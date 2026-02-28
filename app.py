@@ -113,7 +113,7 @@ def load_data():
     try:
         client = init_connection()
         # POZOR: Jméno tabulky musí přesně sedět s tím, co máš v Google Drive
-        sh = client.open("CihlyData_SANDBOX")
+        sh = client.open("CihlyData")
         sheet = sh.worksheet("Data")
         
         all_rows = sheet.get_all_values()
@@ -144,7 +144,7 @@ def save_data(data):
     """Uloží kompletně vše do listu 'Data' - metoda přepsáním listu"""
     try:
         client = init_connection()
-        sh = client.open("CihlyData_SANDBOX")
+        sh = client.open("CihlyData")
         sheet = sh.worksheet("Data")
         
         # Příprava dat k zápisu
@@ -1269,3 +1269,4 @@ else:
                 if c4.button("👮 PROVĚRKA"): msg = trigger_game_event(data, "PROVERKA"); save_data(data); st.success(msg)
                 if st.button("⚠️ RESET DATABÁZE"):
                     st.error("Pro smazání databáze jdi do Google Tabulky, smaž buňku A1 a napiš '{}'.")
+
