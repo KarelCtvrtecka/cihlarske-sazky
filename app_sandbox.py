@@ -383,17 +383,34 @@ else:
                             st.session_state["target"] = (c_name, odd)
                     idx += 1
                 
-                if "target" in st.session_state:
+               if "target" in st.session_state:
                     tc, to = st.session_state["target"]
                     st.info(f"Tiket: **{tc}** (Kurz {to})")
+                    
                     bal = int(user["bal"])
                     def_v = 50 if bal >= 50 else bal
                     vklad = st.number_input("Vklad", 1, max(1, bal), max(1, def_v))
+                    
+                    # --- NOVÝ VÝBĚR ITEMŮ ---
+                    dostupne_predmety = list(set(user.get("inv", [])))
+                    if dostupne_predmety:
+                        vybrane_predmety = st.multiselect("🎒 Použít předměty z batohu (max 1 od druhu):", options=dostupne_predmety)
+                    else:
+                        vybrane_predmety = []
+                    
                     if st.button("✅ Odeslat"):
                         if user["bal"] >= vklad:
                             user["bal"] -= vklad
                             used_bonus = user["bonus"]; user["bonus"] = None 
-                            user["bets"].append({"c": tc, "a": vklad, "o": to, "st": "PENDING", "bonus": used_bonus})
+                            
+                            # Odečtení použitých itemů
+                            if vybrane_predmety:
+                                for predmet in vybrane_predmety:
+                                    if predmet in user["inv"]:
+                                        user["inv"].remove(predmet)
+                                        
+                            # Přidáno "items" do sázky
+                            user["bets"].append({"c": tc, "a": vklad, "o": to, "st": "PENDING", "bonus": used_bonus, "items": vybrane_predmety})
                             update_user_stats(user, 0, 0, vklad, tc)
                             save_data(data); st.success("Hotovo"); del st.session_state["target"]; st.rerun()
                         else: st.error("Chybí CC")
