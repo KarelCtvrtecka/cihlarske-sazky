@@ -631,57 +631,65 @@ else:
         else:
             st.info("Zatím není dostatek dat pro vývoj bohatství hráčů (musí proběhnout alespoň 1 kolo).")
 
-        # --- PREDIKCE TRHU ---
+       # --- AI PREDIKCE TRHU ---
         st.divider()
-        st.subheader("🔮 Prediktivní analýza trhu")
-        st.caption("Tento expertní systém analyzuje hybnost kurzů (momentum) a sílu tržní gravitace algoritmu Market Balance.")
+        st.subheader("🤖 AI Analytik: Kde je největší hodnota?")
+        st.caption("Algoritmus počítá tzv. 'Value Score' (0-100) na základě aktuálního kurzu, hybnosti trhu a rizika zásahu gravitace.")
         
         predictions = []
         for c_name, current_odd in data["market"]["colors"].items():
             history = data["market"]["odds_history"].get(c_name, [current_odd])
             
-            # 1. Výpočet Momentuma (Trend z posledních až 3 kol)
-            if len(history) >= 3:
-                trend = current_odd - history[-3]
-            elif len(history) == 2:
-                trend = current_odd - history[-2]
-            else:
-                trend = 0
+            # 1. Výpočet krátkodobého trendu
+            trend = current_odd - history[-2] if len(history) >= 2 else 0
+            
+            # 2. Výpočet "Skóre výhodnosti" (Value Score)
+            # Základní skóre dané výškou kurzu (průměrně kolem 50 bodů)
+            score = 50 + (current_odd - 2.0) * 15 
+            
+            # Bonus za to, že barva zrovna roste
+            score += trend * 25 
+            
+            # Penalizace za "Přehřátý trh" (nad 3.5 už je vysoké riziko pádu kvůli gravitaci)
+            if current_odd > 3.5:
+                score -= (current_odd - 3.5) * 20
                 
-            # 2. Vliv tajné herní gravitace
-            if current_odd >= 5.0:
-                gravitace = "⚠️ Kritický tlak dolů"
-                doporuceni = "🔴 Extrémní riziko"
-            elif current_odd >= 3.0:
-                gravitace = "⏬ Zvýšený pokles"
-                doporuceni = "🟠 Rizikové"
-            elif current_odd <= 1.4:
-                gravitace = "⏫ Odraz ode dna"
-                doporuceni = "🟢 Výhodné (Value)"
-            else:
-                gravitace = "⚖️ Neutrální"
-                doporuceni = "🟡 Stabilní"
-                
-            # 3. Textové vyjádření trendu
-            if trend > 0.3: trend_sym = "📈 Silně rostoucí"
-            elif trend > 0.0: trend_sym = "↗️ Mírně rostoucí"
-            elif trend < -0.3: trend_sym = "📉 Silně klesající"
-            elif trend < 0.0: trend_sym = "↘️ Mírně klesající"
-            else: trend_sym = "➡️ Bez změny"
+            score = max(1, min(99, int(score))) # Udržet v grafických mezích 1-99
+            
+            # Textové zhodnocení
+            if score >= 75: doporuceni = "🔥 Silný nákup (Top Value)"
+            elif score >= 55: doporuceni = "👍 Dobrá příležitost"
+            elif score >= 40: doporuceni = "⚖️ Neutrální"
+            else: doporuceni = "⚠️ Nevýhodné / Bublina"
             
             predictions.append({
                 "Barva": c_name,
-                "Kurz": f"{current_odd:.1f}",
-                "Krátkodobý Trend": trend_sym,
-                "Tržní Gravitace": gravitace,
+                "Kurz": current_odd,
+                "Skóre": score,
                 "Doporučení": doporuceni
             })
             
-        # Zobrazení krásné tabulky
+        # Seřazení od nejlepšího po nejhorší
         if predictions:
+            predictions = sorted(predictions, key=lambda x: x["Skóre"], reverse=True)
+            
+            # Vyhlášení absolutního vítěze
+            top_pick = predictions[0]
+            st.success(f"🏆 **Nejlepší tip na další kolo:** Vsaď na barvu **{top_pick['Barva']}** (Kurz {top_pick['Kurz']:.1f} CC). Podle algoritmu má teď nejlepší poměr rizika a potenciálního zisku (Skóre: {top_pick['Skóre']}/100).")
+            
+            # Zobrazení profi tabulky s "Progress barem"
             df_pred = pd.DataFrame(predictions)
-            st.dataframe(df_pred, use_container_width=True, hide_index=True)
-
+            st.dataframe(
+                df_pred, 
+                column_config={
+                    "Skóre": st.column_config.ProgressColumn(
+                        "Skóre výhodnosti", format="%f", min_value=0, max_value=100
+                    ),
+                    "Kurz": st.column_config.NumberColumn("Aktuální kurz", format="%.1f CC")
+                },
+                use_container_width=True, 
+                hide_index=True
+            )
 
     
 
