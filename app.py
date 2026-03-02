@@ -1114,22 +1114,42 @@ else:
                             for b in u["bets"]:
                                 if b["st"] == "PENDING":
                                     round_bets[b["c"]] = round_bets.get(b["c"], 0) + b["a"]
+                                    
+                                    # Získání použitých itemů a starého bonusu (pro zpětnou kompatibilitu)
+                                    pouzite_itemy = b.get("items", [])
+                                    stary_bonus = str(b.get("bonus", ""))
+                                    
                                     if b["c"] in winners:
-                                        mul = 2 if "Zlatá" in str(b.get("bonus","")) else 1
-                                        w = int(b["a"] * b["o"] * mul)
+                                        # --- VÝHRA ---
+                                        vklad = b["a"]
+                                        kurz = b["o"]
+                                        cisty_zisk = (vklad * kurz) - vklad
+                                        
+                                        if "🧱 Zlatá Cihla" in pouzite_itemy or "Zlatá" in stary_bonus:
+                                            cisty_zisk = cisty_zisk * 2
+                                            
+                                        w = int(vklad + cisty_zisk)
+                                        
                                         u["bal"] += w
                                         b["st"] = "WON"
-                                        net_profit += (w - b["a"])
-                                        update_user_stats(u, w-b["a"], 0, 0, "")
+                                        net_profit += cisty_zisk
+                                        update_user_stats(u, cisty_zisk, 0, 0, "")
                                         count += 1
                                         has_win = True
                                     else:
+                                        # --- PROHRA ---
                                         loss = b["a"]
-                                        if "BOZP" in str(b.get("bonus","")): 
-                                            u["bal"] += int(b["a"]*0.5); b["insurance"] = True
+                                        if "👷 BOZP Helma" in pouzite_itemy or "BOZP" in stary_bonus or b.get("insurance") == True:
+                                            vraceno = int(b["a"] * 0.5)
+                                            u["bal"] += vraceno
+                                            b["insurance"] = True
+                                            net_profit -= (loss - vraceno)
+                                            update_user_stats(u, 0, (loss - vraceno), 0, "")
+                                        else:
+                                            net_profit -= loss
+                                            update_user_stats(u, 0, loss, 0, "")
+                                            
                                         b["st"] = "LOST"
-                                        net_profit -= loss
-                                        update_user_stats(u, 0, loss, 0, "")
                                         has_loss = True
                             
                             if has_win and not has_loss:
@@ -1269,4 +1289,5 @@ else:
                 if c4.button("👮 PROVĚRKA"): msg = trigger_game_event(data, "PROVERKA"); save_data(data); st.success(msg)
                 if st.button("⚠️ RESET DATABÁZE"):
                     st.error("Pro smazání databáze jdi do Google Tabulky, smaž buňku A1 a napiš '{}'.")
+
 
