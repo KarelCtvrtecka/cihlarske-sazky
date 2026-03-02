@@ -1121,26 +1121,29 @@ else:
                                     
                                     if b["c"] in winners:
                                         # --- VÝHRA ---
-                                        # Zkontrolujeme nový systém (items) i starý (bonus)
-                                        mul = 2 if ("🧱 Zlatá Cihla" in pouzite_itemy or "Zlatá" in stary_bonus) else 1
-                                        w = int(b["a"] * b["o"] * mul)
+                                        vklad = b["a"]
+                                        kurz = b["o"]
+                                        cisty_zisk = (vklad * kurz) - vklad
+                                        
+                                        if "🧱 Zlatá Cihla" in pouzite_itemy or "Zlatá" in stary_bonus:
+                                            cisty_zisk = cisty_zisk * 2
+                                            
+                                        w = int(vklad + cisty_zisk)
                                         
                                         u["bal"] += w
                                         b["st"] = "WON"
-                                        net_profit += (w - b["a"])
-                                        update_user_stats(u, w - b["a"], 0, 0, "")
+                                        net_profit += cisty_zisk
+                                        update_user_stats(u, cisty_zisk, 0, 0, "")
                                         count += 1
                                         has_win = True
                                     else:
                                         # --- PROHRA ---
                                         loss = b["a"]
-                                        # Zkontrolujeme Helmu v novém i starém systému
                                         if "👷 BOZP Helma" in pouzite_itemy or "BOZP" in stary_bonus or b.get("insurance") == True:
                                             vraceno = int(b["a"] * 0.5)
                                             u["bal"] += vraceno
-                                            b["insurance"] = True  # Označíme pro vykreslení v historii
-                                            
-                                            net_profit -= (loss - vraceno) # Ztratil jen půlku
+                                            b["insurance"] = True
+                                            net_profit -= (loss - vraceno)
                                             update_user_stats(u, 0, (loss - vraceno), 0, "")
                                         else:
                                             net_profit -= loss
