@@ -823,7 +823,7 @@ else:
             
             # Metriky (Výsledky bez složitého grafu)
             c1, c2, c3 = st.columns(3)
-            c1.metric("Celkové CC v oběhu", f"{celkove_bohatstvi} CC", help="Ukazatel inflace - kolik peněz je celkem ve hře.")
+            c1.metric("Celkové CC v oběhu", f"{celkove_bohatstvi} CC", help="kolik peněz je celkem ve hře.")
             c2.metric("Průměr na hráče", f"{int(celkove_bohatstvi / pocet_hracu)} CC")
             
             # Gini s barvičkou
