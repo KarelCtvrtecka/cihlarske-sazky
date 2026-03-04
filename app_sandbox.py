@@ -625,7 +625,7 @@ else:
             # --- EXPORT DAT PRO VÝZKUM ---
             csv_data = df_hist.to_csv(index=False, sep=';', decimal=',').encode('utf-8-sig')
             st.download_button(
-                label="📥 Stáhnout historii kurzů (CSV)", 
+                label="📥 Stáhnout historii kurzů", 
                 data=csv_data, 
                 file_name='historie_kurzu.csv', 
                 mime='text/csv'
