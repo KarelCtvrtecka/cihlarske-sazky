@@ -581,7 +581,7 @@ else:
         odds_hist = data["market"].get("odds_history", {})
         
         # Zkontrolujeme, jestli už máme nějaká data (alespoň 1 kolo za námi)
-        if odds_hist and any(len(h) > 1 for h in odds_hist.values()):
+        if odds_hist and any(len(h) > 0 for h in odds_hist.values()):
             # Interaktivní posuvník pro hráče (ukáže 5 až 50 kol)
             limit_kol = st.slider("Zobrazit posledních X kol:", min_value=5, max_value=50, value=15, step=5)
             
@@ -1323,6 +1323,7 @@ else:
                 if c4.button("👮 PROVĚRKA"): msg = trigger_game_event(data, "PROVERKA"); save_data(data); st.success(msg)
                 if st.button("⚠️ RESET DATABÁZE"):
                     st.error("Pro smazání databáze jdi do Google Tabulky, smaž buňku A1 a napiš '{}'.")
+
 
 
 
