@@ -806,6 +806,7 @@ else:
         if graf_data:
             nejlepsi = max(graf_data, key=lambda x: x["Šance na výhru (%)"])
             st.success(f"🏆 **Největší favorit:**  **{nejlepsi['Barva']}** ({nejlepsi['Šance na výhru (%)']} %).")
+        
         # --- MAKROEKONOMICKÝ DASHBOARD (Zbraň B) ---
         st.divider()
         st.subheader("🌍 Makroekonomika a rozložení bohatství")
@@ -1354,6 +1355,7 @@ else:
                 if c4.button("👮 PROVĚRKA"): msg = trigger_game_event(data, "PROVERKA"); save_data(data); st.success(msg)
                 if st.button("⚠️ RESET DATABÁZE"):
                     st.error("Pro smazání databáze jdi do Google Tabulky, smaž buňku A1 a napiš '{}'.")
+
 
 
 
