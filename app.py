@@ -620,6 +620,14 @@ else:
             ).properties(height=450)
             
             st.altair_chart(c_line, use_container_width=True)
+            # --- EXPORT DAT PRO VÝZKUM ---
+            csv_data = df_hist.to_csv(index=False, sep=';', decimal=',').encode('utf-8-sig')
+            st.download_button(
+                label="📥 Stáhnout historii kurzů", 
+                data=csv_data, 
+                file_name='historie_kurzu.csv', 
+                mime='text/csv'
+            )
         else:
             st.info("Zatím není dostatek dat pro vývoj kurzů (musí proběhnout alespoň 1 kolo).")
         # --- NOVÝ GRAF VÝVOJE BOHATSTVÍ HRÁČŮ ---
@@ -1323,6 +1331,7 @@ else:
                 if c4.button("👮 PROVĚRKA"): msg = trigger_game_event(data, "PROVERKA"); save_data(data); st.success(msg)
                 if st.button("⚠️ RESET DATABÁZE"):
                     st.error("Pro smazání databáze jdi do Google Tabulky, smaž buňku A1 a napiš '{}'.")
+
 
 
 
