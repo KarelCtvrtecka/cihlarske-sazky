@@ -810,7 +810,7 @@ else:
         # --- MAKROEKONOMICKÝ DASHBOARD (Zbraň B) ---
         st.divider()
         st.subheader("🌍 Makroekonomika a rozložení bohatství")
-        st.caption("Analýza celkové ekonomiky trhu a indexu nerovnosti. ")
+        st.caption("Analýza celkové ekonomiky trhu.")
 
         # 1. Výpočet celkového bohatství (Money Supply) a příprava dat
         vsechny_zustatky = sorted([int(u["bal"]) for u in data["users"].values() if u["bal"] >= 0])
@@ -822,50 +822,18 @@ else:
             kumulativni_bohatstvi = sum((i + 1) * b for i, b in enumerate(vsechny_zustatky))
             gini = (2.0 * kumulativni_bohatstvi) / (pocet_hracu * celkove_bohatstvi) - (pocet_hracu + 1.0) / pocet_hracu
             
-            # Metriky
+            # Metriky (Výsledky bez složitého grafu)
             c1, c2, c3 = st.columns(3)
-            c1.metric("Celkové CC v oběhu", f"{celkove_bohatstvi} CC", help="Ukazatel inflace - kolik peněz je celkem ve hře.")
+            c1.metric("Celkové CC v oběhu", f"{celkove_bohatstvi} CC", help="kolik peněz je celkem ve hře.")
             c2.metric("Průměr na hráče", f"{int(celkove_bohatstvi / pocet_hracu)} CC")
             
             # Gini s barvičkou
             gini_color = "normal" if gini < 0.4 else "inverse"
             c3.metric("Giniho koeficient", f"{gini:.2f}", delta="Ideál je 0.0" if gini < 0.4 else "Vysoká nerovnost!", delta_color=gini_color, help="0 = všichni mají stejně, 1 = jeden uživatel vlastní všechno.")
 
-            # 3. Lorenzova křivka (Graf nerovnosti)
-            lorenz_data = [{"Skupina": 0, "Podíl populace (%)": 0, "Podíl bohatství (%)": 0, "Ideální rovnost (%)": 0}]
-            kumul_bohatstvi_aktualni = 0
-            
-            for i, b in enumerate(vsechny_zustatky):
-                kumul_bohatstvi_aktualni += b
-                podil_populace = ((i + 1) / pocet_hracu) * 100
-                podil_bohatstvi = (kumul_bohatstvi_aktualni / celkove_bohatstvi) * 100
-                lorenz_data.append({
-                    "Skupina": i + 1,
-                    "Podíl populace (%)": round(podil_populace, 1),
-                    "Podíl bohatství (%)": round(podil_bohatstvi, 1),
-                    "Ideální rovnost (%)": round(podil_populace, 1) # Ideální rovnost je přímka 45 stupňů
-                })
-                
-            df_lorenz = pd.DataFrame(lorenz_data)
-            
-            # Vykreslení grafu v Altairu
-            base = alt.Chart(df_lorenz).encode(x=alt.X('Podíl populace (%):Q', scale=alt.Scale(domain=[0, 100]), title="Podíl populace (od nejchudších po nejbohatší)"))
-            
-            # Reálná křivka (Oranžová)
-            krivka_realna = base.mark_line(color='#ff6600', strokeWidth=4).encode(
-                y=alt.Y('Podíl bohatství (%):Q', scale=alt.Scale(domain=[0, 100]), title="Podíl celkového bohatství"),
-                tooltip=['Podíl populace (%)', 'Podíl bohatství (%)']
-            )
-            # Křivka ideální rovnosti (Šedá přerušovaná)
-            krivka_idealni = base.mark_line(color='gray', strokeDash=[5, 5]).encode(
-                y='Ideální rovnost (%):Q'
-            )
-            
-            st.altair_chart(krivka_idealni + krivka_realna, use_container_width=True)
-            
-            
+            # Textové zhodnocení pro SOČ
             if gini > 0.5:
-                st.warning("⚠️ **Ekonomické varování:** Bohatství je silně koncentrováno. Malé procento hráčů ovládá většinu trhu (kapitalistický monopol).")
+                st.warning("⚠️ **Ekonomické varování:** Bohatství je silně koncentrováno. Malé procento hráčů ovládá většinu trhu.")
             elif gini < 0.2:
                 st.success("⚖️ **Ekonomická stabilita:** Bohatství je mezi hráče rozděleno velmi rovnoměrně.")
             else:
@@ -1355,6 +1323,7 @@ else:
                 if c4.button("👮 PROVĚRKA"): msg = trigger_game_event(data, "PROVERKA"); save_data(data); st.success(msg)
                 if st.button("⚠️ RESET DATABÁZE"):
                     st.error("Pro smazání databáze jdi do Google Tabulky, smaž buňku A1 a napiš '{}'.")
+
 
 
 
