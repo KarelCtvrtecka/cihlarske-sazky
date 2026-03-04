@@ -623,7 +623,7 @@ else:
             
             # 👇 TOTO SEM VLOŽÍŠ 👇
             # --- EXPORT DAT PRO VÝZKUM ---
-            csv_data = df_hist.to_csv(index=False).encode('utf-8')
+            csv_data = df_hist.to_csv(index=False, sep=';', decimal=',').encode('utf-8-sig')
             st.download_button(
                 label="📥 Stáhnout historii kurzů (CSV)", 
                 data=csv_data, 
