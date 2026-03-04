@@ -871,7 +871,7 @@ else:
                 st.info("📊 **Tržní standard:** Hra vykazuje běžnou majetkovou nerovnost, podobnou reálným ekonomikám.")
 
         else:
-            st.info("Zatím není dostatek dat pro makroekonomickou analýzu.")
+            st.info("Zatím není dostatek dat pro makroekonomickou analýzu.") 
 
     # --- OBCHOD ---
     elif page == "OBCHOD":
@@ -1354,6 +1354,7 @@ else:
                 if c4.button("👮 PROVĚRKA"): msg = trigger_game_event(data, "PROVERKA"); save_data(data); st.success(msg)
                 if st.button("⚠️ RESET DATABÁZE"):
                     st.error("Pro smazání databáze jdi do Google Tabulky, smaž buňku A1 a napiš '{}'.")
+
 
 
 
