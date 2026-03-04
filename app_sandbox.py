@@ -809,7 +809,7 @@ else:
         # --- MAKROEKONOMICKÝ DASHBOARD (Zbraň B) ---
         st.divider()
         st.subheader("🌍 Makroekonomika a rozložení bohatství")
-        st.caption("Analýza celkové ekonomiky trhu a indexu nerovnosti (Giniho koeficient).")
+        st.caption("Analýza celkové ekonomiky trhu a indexu nerovnosti. ")
 
         # 1. Výpočet celkového bohatství (Money Supply) a příprava dat
         vsechny_zustatky = sorted([int(u["bal"]) for u in data["users"].values() if u["bal"] >= 0])
@@ -828,7 +828,7 @@ else:
             
             # Gini s barvičkou
             gini_color = "normal" if gini < 0.4 else "inverse"
-            c3.metric("Giniho koeficient", f"{gini:.2f}", delta="Ideál je 0.0" if gini < 0.4 else "Vysoká nerovnost!", delta_color=gini_color, help="0 = všichni mají stejně, 1 = jeden Cihlobaron vlastní všechno.")
+            c3.metric("Giniho koeficient", f"{gini:.2f}", delta="Ideál je 0.0" if gini < 0.4 else "Vysoká nerovnost!", delta_color=gini_color, help="0 = všichni mají stejně, 1 = jeden uživatel vlastní všechno.")
 
             # 3. Lorenzova křivka (Graf nerovnosti)
             lorenz_data = [{"Skupina": 0, "Podíl populace (%)": 0, "Podíl bohatství (%)": 0, "Ideální rovnost (%)": 0}]
@@ -862,7 +862,7 @@ else:
             
             st.altair_chart(krivka_idealni + krivka_realna, use_container_width=True)
             
-            # Textové zhodnocení pro SOČ
+            
             if gini > 0.5:
                 st.warning("⚠️ **Ekonomické varování:** Bohatství je silně koncentrováno. Malé procento hráčů ovládá většinu trhu (kapitalistický monopol).")
             elif gini < 0.2:
