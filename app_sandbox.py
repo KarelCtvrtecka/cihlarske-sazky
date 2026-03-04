@@ -620,6 +620,17 @@ else:
             ).properties(height=450)
             
             st.altair_chart(c_line, use_container_width=True)
+            
+            # 👇 TOTO SEM VLOŽÍŠ 👇
+            # --- EXPORT DAT PRO VÝZKUM ---
+            csv_data = df_hist.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Stáhnout historii kurzů (CSV)", 
+                data=csv_data, 
+                file_name='historie_kurzu.csv', 
+                mime='text/csv'
+            )
+            # 👆 KONEC VLOŽENÉHO KÓDU 👆
         else:
             st.info("Zatím není dostatek dat pro vývoj kurzů (musí proběhnout alespoň 1 kolo).")
         # --- NOVÝ GRAF VÝVOJE BOHATSTVÍ HRÁČŮ ---
